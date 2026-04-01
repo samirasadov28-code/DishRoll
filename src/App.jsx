@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.0.4";
+const APP_VERSION = "0.0.5";
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const DAY_SHORT = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu', Friday:'Fri', Saturday:'Sat', Sunday:'Sun' };
@@ -174,6 +174,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#f4fafa;color:#1a2f2f
 .mc{background:#fff;border-radius:10px;padding:8px 7px;border:1.5px solid #c8e4e4;position:relative;min-height:104px;display:flex;flex-direction:column;transition:border-color .18s}
 .mc:hover{border-color:#6abcbc}
 .mc.ss{border-color:#0d7272;background:#f0fafa}
+.mc.ssk{border-color:#2a7a2a;background:#f0f8f0}
 .mn{font-size:11px;font-weight:600;color:#0a4848;line-height:1.3;margin-bottom:2px;cursor:pointer}
 .mn:hover{color:#0d7272;text-decoration:underline}
 .md{font-size:10px;color:#4a7070;line-height:1.4;flex:1}
@@ -346,6 +347,7 @@ export default function App() {
   const [costs, setCosts]     = useState({});
   const [sl, setSl]           = useState(null);
   const [sel, setSel]         = useState(new Set());
+  const [kidsSel, setKidsSel] = useState(new Set());
   const [chk, setChk]        = useState(new Set());
   const [custom, setCustom]   = useState([]);
   const [addTxt, setAddTxt]   = useState('');
@@ -389,10 +391,10 @@ export default function App() {
   const done=allItems().filter(i=>chk.has(i.id)).length;
   const allDone=total>0&&done===total;
 
-  function persist(p2,c2,l2,chk2,cu2) {
+  function persist(p2,c2,l2,chk2,cu2,ks2) {
     const key = awkRef.current;
     if(!key||!p2) return;
-    saveWk(key,{mealPlan:p2,planCosts:c2!=null?c2:costs,prefs,shoppingList:l2!=null?l2:sl,checkedItems:[...(chk2!=null?chk2:chk)],customItems:cu2!=null?cu2:custom});
+    saveWk(key,{mealPlan:p2,planCosts:c2!=null?c2:costs,prefs,shoppingList:l2!=null?l2:sl,checkedItems:[...(chk2!=null?chk2:chk)],customItems:cu2!=null?cu2:custom,kidsSelected:[...(ks2!=null?ks2:kidsSel)]});
   }
 
   function openPlan(key) {
@@ -400,18 +402,18 @@ export default function App() {
     setAwk(key); setPlan(d.mealPlan); setCosts(d.planCosts||{});
     if(d.prefs) setPrefs({...DEFAULT_PREFS,...d.prefs});
     setSl(d.shoppingList||null); setChk(new Set(d.checkedItems||[])); setCustom(d.customItems||[]);
-    setSel(new Set()); setErr(''); setStep('mealplan');
+    setSel(new Set()); setKidsSel(new Set(d.kidsSelected||[])); setErr(''); setStep('mealplan');
   }
   function openList(key) {
     const d=loadWk(key); if(!d?.shoppingList) return;
     setAwk(key); setPlan(d.mealPlan||null); setCosts(d.planCosts||{});
     if(d.prefs) setPrefs({...DEFAULT_PREFS,...d.prefs});
     setSl(d.shoppingList); setChk(new Set(d.checkedItems||[])); setCustom(d.customItems||[]);
-    setSel(new Set()); setErr(''); setStep('list');
+    setSel(new Set()); setKidsSel(new Set(d.kidsSelected||[])); setErr(''); setStep('list');
   }
   function newRoll(key) {
     setAwk(key); setPlan(null); setCosts({}); setSl(null);
-    setChk(new Set()); setCustom([]); setSel(new Set()); setErr(''); setStep('welcome');
+    setChk(new Set()); setCustom([]); setSel(new Set()); setKidsSel(new Set()); setErr(''); setStep('welcome');
   }
   function forceUpdate() {
     setUpd(true);
@@ -445,15 +447,16 @@ export default function App() {
       const fh=[...prefs.favoriteMeals,...favs.slice(0,4)].filter(Boolean).join(', ');
       const bn=prefs.budgetEnabled&&bgt>0?'Budget:'+sym+bgt+'/week.':'';
       const cn=prefs.dishComplexity==='simple'?'Prefer quick easy dishes under 30 minutes.':prefs.dishComplexity==='elaborate'?'Include impressive multi-step recipes.':'';
-      const kn=prefs.kids>0&&prefs.kidsDifferentFood?'Add "kidsAlt":"simple child-friendly dish name" to each meal.':'';
-      const dT='{"'+prefs.mealTypes.join('":M,"')+'":M}'.replace(/M(?=")/g,'{"name":"s","description":"8w","time":"Xm","estCost":0.00,"ingredients":["qty item"]'+(prefs.kids>0&&prefs.kidsDifferentFood?',"kidsAlt":"s"':'')+'}'  );
+      const kidsField = prefs.kids>0&&prefs.kidsDifferentFood?',"kidsAlt":{"name":"s","ingredients":["qty item"]}':'';
+      const kn = prefs.kids>0&&prefs.kidsDifferentFood?`Each meal must include "kidsAlt":{"name":"simple child-friendly dish","ingredients":["qty unit item",...]} with ${prefs.kids} kid-sized portions, mild flavours.`:'';
+      const dT='{"'+prefs.mealTypes.join('":M,"')+'":M}'.replace(/M(?=")/g,'{"name":"s","description":"8w","time":"Xm","estCost":0.00,"ingredients":["qty item"]'+kidsField+'}');
       const dJ=sdays.map(d=>'"'+d.toLowerCase()+'":'+dT).join(',');
       const raw=await callAI('Generate meal plan for these days only. Return ONLY compact JSON.\nMeal types:'+prefs.mealTypes.join(',')+'|Cuisines:'+(prefs.cuisines.length?prefs.cuisines.join(','):'varied')+'|Dietary:'+(prefs.dietary.length?prefs.dietary.join(','):'none')+'|Adventure:'+prefs.variability+'/100|Servings:'+tsrv+'|Favs:'+(fh||'none')+'|'+bn+' '+cn+' '+kn+'\nReturn:{'+dJ+'}',4000);
       const p2=JSON.parse(raw);
       const c2={};
       sdays.forEach(d=>prefs.mealTypes.forEach(t=>{const m=p2[d.toLowerCase()]?.[t];if(m&&m.estCost) c2[d.toLowerCase()+'-'+t]=m.estCost;}));
       clearInterval(iv); setPlan(p2); setCosts(c2);
-      persist(p2,c2,null,new Set(),[]); setStep('mealplan');
+      persist(p2,c2,null,new Set(),[],new Set()); setStep('mealplan');
     } catch(e) { clearInterval(iv); setErr('Could not roll: '+e.message); setStep('servings'); }
   }
 
@@ -470,21 +473,45 @@ export default function App() {
     const k=swap.day.toLowerCase()+'-'+swap.mt;
     const nc={...costs,[k]:opt.estCost||0};
     const np={...plan,[swap.day.toLowerCase()]:{...plan[swap.day.toLowerCase()],[swap.mt]:opt}};
-    setCosts(nc); setPlan(np); persist(np,nc,sl,chk,custom); setSwap(null); setSwapOpts([]);
+    setCosts(nc); setPlan(np); persist(np,nc,sl,chk,custom,kidsSel); setSwap(null); setSwapOpts([]);
   }
 
   const tgSel=k=>setSel(p=>{const n=new Set(p);n.has(k)?n.delete(k):n.add(k);return n;});
-  const selAll=()=>{const s=new Set();sdays.forEach(d=>prefs.mealTypes.forEach(t=>{if(plan?.[d.toLowerCase()]?.[t]) s.add(d.toLowerCase()+'-'+t);}));setSel(s);};
+  const tgKidsSel=k=>setKidsSel(p=>{const n=new Set(p);n.has(k)?n.delete(k):n.add(k);return n;});
+  const selAll=()=>{
+    const s=new Set(); const ks=new Set();
+    sdays.forEach(d=>prefs.mealTypes.forEach(t=>{
+      const meal=plan?.[d.toLowerCase()]?.[t];
+      if(meal) s.add(d.toLowerCase()+'-'+t);
+      if(meal?.kidsAlt?.name && prefs.kidsDifferentFood) ks.add(d.toLowerCase()+'-'+t+'-kids');
+    }));
+    setSel(s); setKidsSel(ks);
+  };
 
   async function buildList() {
-    if(!sel.size) return; setLoading(true); setLoadMsg('Building your shopping list…');
+    if(!sel.size && !kidsSel.size) return;
+    setLoading(true); setLoadMsg('Building your shopping list…');
     try {
       const items=[];
-      sdays.forEach(d=>prefs.mealTypes.forEach(t=>{if(sel.has(d.toLowerCase()+'-'+t)){const m=plan?.[d.toLowerCase()]?.[t];if(m) items.push({meal:m.name,servings:tsrv,ingredients:m.ingredients});}}));
-      const raw=await callAI('Combine into grocery list for '+tsrv+' people. Merge similar items. Group by aisle.\nMeals:'+JSON.stringify(items)+'\nReturn ONLY JSON:{"categories":[{"name":"Produce","items":["2 onions"]},{"name":"Proteins","items":["600g chicken"]},{"name":"Pantry","items":["400g tomatoes"]}]}\nCategories:Produce,Proteins,Dairy,Grains,Pantry,Condiments,Frozen,Bakery,Beverages,Other.',2000);
+      // Adult meals
+      sdays.forEach(d=>prefs.mealTypes.forEach(t=>{
+        if(sel.has(d.toLowerCase()+'-'+t)){
+          const m=plan?.[d.toLowerCase()]?.[t];
+          if(m) items.push({meal:m.name,servings:tsrv,ingredients:m.ingredients,label:'Adults'});
+        }
+      }));
+      // Kids meals (separate ingredients, separate servings)
+      sdays.forEach(d=>prefs.mealTypes.forEach(t=>{
+        if(kidsSel.has(d.toLowerCase()+'-'+t+'-kids')){
+          const ka=plan?.[d.toLowerCase()]?.[t]?.kidsAlt;
+          if(ka?.ingredients?.length) items.push({meal:ka.name,servings:prefs.kids,ingredients:ka.ingredients,label:'Kids'});
+        }
+      }));
+      const raw=await callAI(
+        `Combine into one grocery list. Merge identical items, keep kids/adult portions separate where different.\nMeals:${JSON.stringify(items)}\nReturn ONLY JSON:{"categories":[{"name":"Produce","items":["2 large onions"]},{"name":"Proteins","items":["600g chicken thighs (adults)","300g chicken breast (kids)"]}]}\nCategories:Produce,Proteins,Dairy,Grains,Pantry,Condiments,Frozen,Bakery,Beverages,Other.`,2400);
       const list=JSON.parse(raw);
       setSl(list); setChk(new Set()); setCustom([]);
-      persist(plan,costs,list,new Set(),[]); setStep('list');
+      persist(plan,costs,list,new Set(),[],kidsSel); setStep('list');
     } catch{setErr('Could not build shopping list.');}
     setLoading(false);
   }
@@ -870,6 +897,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
                     <div/>{sdays.map(d=><div key={d} className="gh">{DAY_SHORT[d]}</div>)}
                     {prefs.mealTypes.map(mt=>(
                       <Fragment key={mt}>
+                        {/* Adult row */}
                         <div className="gl">{ML[mt]}</div>
                         {sdays.map(day=>{
                           const m=plan?.[day.toLowerCase()]?.[mt];
@@ -882,7 +910,6 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
                                 {fv&&<div className="fd">⭐</div>}
                                 <div className="mn" onClick={e=>{e.stopPropagation();openRecipe(m,mt);}}>{m.name}</div>
                                 <div className="md">{m.description}</div>
-                                {prefs.kids>0&&prefs.kidsDifferentFood&&m.kidsAlt&&<div className="mk" style={{cursor:'pointer'}} onClick={e=>{e.stopPropagation();openRecipe({name:m.kidsAlt,ingredients:[],time:'~20 min',description:'Kid-friendly version'},mt,'kids');}}>👧 {m.kidsAlt} →</div>}
                                 <div className="mm"><span className="mt">⏱ {m.time}</span>{prefs.budgetEnabled&&co!=null&&<span className="mco">{sym}{co}</span>}</div>
                                 <div className="ma" onClick={e=>e.stopPropagation()}>
                                   <button className="ib" onClick={()=>tf(m.name)}>{fv?'⭐':'☆'}</button>
@@ -893,18 +920,51 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
                             </div>
                           );
                         })}
+                        {/* Kids row — only when kidsDifferentFood is on */}
+                        {prefs.kids>0&&prefs.kidsDifferentFood&&(
+                          <>
+                            <div className="gl" style={{color:'#2a7a2a',fontSize:11}}>👧 Kids</div>
+                            {sdays.map(day=>{
+                              const ka=plan?.[day.toLowerCase()]?.[mt]?.kidsAlt;
+                              const kname = typeof ka==='object' ? ka?.name : ka;
+                              const kIngs = typeof ka==='object' ? ka?.ingredients||[] : [];
+                              const kk=day.toLowerCase()+'-'+mt+'-kids';
+                              const ks=kidsSel.has(kk);
+                              return (
+                                <div key={day} className={'mc '+(ks?'ssk':'')} style={{borderColor:ks?'#2a7a2a':'#b8d8b8',background:ks?'#f0f8f0':'#fafffe'}} onClick={()=>kname&&tgKidsSel(kk)}>
+                                  {kname?(<>
+                                    {ks&&<div className="cb2" style={{background:'#2a7a2a'}}>✓</div>}
+                                    <div className="mn" style={{color:'#2a7a2a'}} onClick={e=>{e.stopPropagation();openRecipe({name:kname,ingredients:kIngs,time:'~20 min'},mt,'kids');}}>{kname}</div>
+                                    <div className="md" style={{fontSize:10,color:'#4a7a4a'}}>Kid-friendly · {prefs.kids} portion{prefs.kids>1?'s':''}</div>
+                                    <div className="ma" onClick={e=>e.stopPropagation()}>
+                                      <button className="ib" onClick={()=>openRecipe({name:kname,ingredients:kIngs,time:'~20 min'},mt,'kids')}>📖</button>
+                                    </div>
+                                  </>):<div style={{color:'#cdc',fontSize:10,textAlign:'center',margin:'auto'}}>—</div>}
+                                </div>
+                              );
+                            })}
+                          </>
+                        )}
                       </Fragment>
                     ))}
                   </div>
                 </div>
                 <div className="card">
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8,marginBottom:10}}>
-                    <div><div style={{fontWeight:600,fontSize:14,color:'#0a4848',marginBottom:2}}>🛒 Build shopping list</div><div style={{fontSize:12,color:'#4a7070'}}>{sel.size} of {sdays.length*prefs.mealTypes.length} meals selected</div></div>
-                    <div style={{display:'flex',gap:6}}><button className="btn bg bsm" onClick={selAll}>Select all</button><button className="btn bg bsm" onClick={()=>setSel(new Set())}>Clear</button></div>
+                    <div>
+                      <div style={{fontWeight:600,fontSize:14,color:'#0a4848',marginBottom:2}}>🛒 Build shopping list</div>
+                      <div style={{fontSize:12,color:'#4a7070'}}>
+                        {sel.size} adult{sel.size!==1?'s':''} + {kidsSel.size} kids meal{kidsSel.size!==1?'s':''} selected
+                      </div>
+                    </div>
+                    <div style={{display:'flex',gap:6}}>
+                      <button className="btn bg bsm" onClick={selAll}>Select all</button>
+                      <button className="btn bg bsm" onClick={()=>{setSel(new Set());setKidsSel(new Set());}}>Clear</button>
+                    </div>
                   </div>
                   {err&&<div className="err" style={{marginBottom:8}}>⚠️ {err}</div>}
                   <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                    <button className="btn bp" onClick={buildList} disabled={!sel.size||loading}>{loading?'⏳ Building…':'Build list ('+sel.size+' meal'+(sel.size!==1?'s':'')+')'}</button>
+                    <button className="btn bp" onClick={buildList} disabled={(!sel.size&&!kidsSel.size)||loading}>{loading?'⏳ Building…':'Build list ('+(sel.size+kidsSel.size)+' meal'+((sel.size+kidsSel.size)!==1?'s':'')+')'}</button>
                     {hasSl&&<button className="btn bg" onClick={()=>setStep('list')}>🛒 Open existing list</button>}
                   </div>
                 </div>
