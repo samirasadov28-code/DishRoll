@@ -1,52 +1,91 @@
+// DishRoll photo proxy — searches TheMealDB with multiple fallback strategies
+// Free API, no key needed, CORS proxied through Netlify
+
+const MEALDB = 'https://www.themealdb.com/api/json/v1/1';
+
+// Map common meal keywords → TheMealDB categories
+const KEYWORD_TO_CATEGORY = {
+  chicken: 'Chicken', duck: 'Chicken', turkey: 'Chicken', poultry: 'Chicken',
+  beef: 'Beef', steak: 'Beef', burger: 'Beef', meatball: 'Beef', bolognese: 'Beef',
+  lamb: 'Lamb', mutton: 'Lamb',
+  pork: 'Pork', bacon: 'Pork', ham: 'Pork', sausage: 'Pork',
+  pasta: 'Pasta', spaghetti: 'Pasta', penne: 'Pasta', linguine: 'Pasta', carbonara: 'Pasta', fettuccine: 'Pasta',
+  seafood: 'Seafood', fish: 'Seafood', salmon: 'Seafood', cod: 'Seafood', shrimp: 'Seafood', prawn: 'Seafood',
+  vegetarian: 'Vegetarian', vegan: 'Vegetarian', tofu: 'Vegetarian',
+  dessert: 'Dessert', cake: 'Dessert', pie: 'Dessert', pudding: 'Dessert', chocolate: 'Dessert',
+  soup: 'Miscellaneous', stew: 'Miscellaneous', borscht: 'Miscellaneous', curry: 'Miscellaneous',
+  breakfast: 'Breakfast', pancake: 'Breakfast', waffle: 'Breakfast', omelette: 'Breakfast',
+  goat: 'Goat', starter: 'Starter', side: 'Side',
+};
+
+async function searchByName(term) {
+  const url = `${MEALDB}/search.php?s=${encodeURIComponent(term)}`;
+  const r = await fetch(url);
+  if (!r.ok) return null;
+  const d = await r.json();
+  return d.meals?.[0]?.strMealThumb || null;
+}
+
+async function searchByCategory(category) {
+  const url = `${MEALDB}/filter.php?c=${encodeURIComponent(category)}`;
+  const r = await fetch(url);
+  if (!r.ok) return null;
+  const d = await r.json();
+  if (!d.meals?.length) return null;
+  // Pick a random meal from the category for variety
+  const pick = d.meals[Math.floor(Math.random() * Math.min(d.meals.length, 10))];
+  return pick?.strMealThumb || null;
+}
+
+function detectCategory(name) {
+  const n = name.toLowerCase();
+  for (const [keyword, category] of Object.entries(KEYWORD_TO_CATEGORY)) {
+    if (n.includes(keyword)) return category;
+  }
+  return null;
+}
+
 exports.handler = async (event) => {
-  const q = event.queryStringParameters?.q || '';
+  const headers = {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'public, max-age=86400', // cache 24h
+  };
+
+  const q = (event.queryStringParameters?.q || '').trim();
   if (!q) {
-    return { statusCode: 400, headers:{'Content-Type':'application/json'}, body: JSON.stringify({photo:null}) };
+    return { statusCode: 200, headers, body: JSON.stringify({ photo: null }) };
   }
 
   try {
-    // Try TheMealDB search with full name first
-    const url1 = `https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(q)}`;
-    const res1 = await fetch(url1);
-    if (res1.ok) {
-      const d1 = await res1.json();
-      if (d1.meals && d1.meals[0]?.strMealThumb) {
-        return {
-          statusCode: 200,
-          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
-          body: JSON.stringify({ photo: d1.meals[0].strMealThumb })
-        };
-      }
+    // Strategy 1: Search by full meal name
+    let photo = await searchByName(q);
+    if (photo) return { statusCode: 200, headers, body: JSON.stringify({ photo }) };
+
+    // Strategy 2: Search by first 2 words (e.g. "Chicken Tikka" from "Chicken Tikka Masala")
+    const words = q.split(' ');
+    if (words.length > 2) {
+      photo = await searchByName(words.slice(0, 2).join(' '));
+      if (photo) return { statusCode: 200, headers, body: JSON.stringify({ photo }) };
     }
 
-    // Fallback: try with just the first word (e.g. "Chicken" from "Chicken Tikka Masala")
-    const firstWord = q.split(' ')[0];
-    if (firstWord && firstWord !== q) {
-      const url2 = `https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(firstWord)}`;
-      const res2 = await fetch(url2);
-      if (res2.ok) {
-        const d2 = await res2.json();
-        if (d2.meals && d2.meals[0]?.strMealThumb) {
-          return {
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
-            body: JSON.stringify({ photo: d2.meals[0].strMealThumb })
-          };
-        }
-      }
+    // Strategy 3: Search by first word only
+    if (words.length > 1) {
+      photo = await searchByName(words[0]);
+      if (photo) return { statusCode: 200, headers, body: JSON.stringify({ photo }) };
     }
 
-    // No photo found
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ photo: null })
-    };
+    // Strategy 4: Detect category from meal name keywords and pick a random meal from that category
+    const category = detectCategory(q);
+    if (category) {
+      photo = await searchByCategory(category);
+      if (photo) return { statusCode: 200, headers, body: JSON.stringify({ photo }) };
+    }
+
+    // No photo found — app will use gradient + emoji fallback
+    return { statusCode: 200, headers, body: JSON.stringify({ photo: null }) };
+
   } catch (err) {
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ photo: null })
-    };
+    console.error('Photo fetch error:', err.message);
+    return { statusCode: 200, headers, body: JSON.stringify({ photo: null }) };
   }
 };
