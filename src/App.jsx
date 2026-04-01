@@ -1,6 +1,6 @@
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.0.3";
+const APP_VERSION = "0.0.4";
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const DAY_SHORT = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu', Friday:'Fri', Saturday:'Sat', Sunday:'Sun' };
@@ -26,7 +26,11 @@ const DEFAULT_PREFS = {
 function getMondayOf(d) { const r=new Date(d),day=r.getDay(); r.setDate(r.getDate()+(day===0?-6:1-day)); r.setHours(0,0,0,0); return r; }
 function weekKey(d) { return getMondayOf(d).toISOString().slice(0,10); }
 function cwKey() { return weekKey(new Date()); }
-function weekLabel(k) { const m=new Date(k+'T00:00:00'),s=new Date(m); s.setDate(m.getDate()+6); const f=d=>d.toLocaleDateString('en-IE',{day:'numeric',month:'short'}); return f(m)+' – '+f(s); }
+function weekLabel(k) {
+  const m=new Date(k+'T00:00:00'),s=new Date(m); s.setDate(m.getDate()+6);
+  const f=d=>d.toLocaleDateString('en-IE',{weekday:'short',day:'numeric',month:'short'});
+  return f(m)+' – '+f(s);
+}
 function isCW(k) { return k===cwKey(); }
 function isFW(k) { return k>cwKey(); }
 function weeksAround(ck,past) { past=past||6; const r=[],c=new Date(ck+'T00:00:00'); for(let i=-past;i<=2;i++){const d=new Date(c);d.setDate(d.getDate()+i*7);r.push(weekKey(d));} return [...new Set(r)].sort(); }
@@ -57,6 +61,35 @@ function grad(name) {
   name=name||''; let h=0; for(let i=0;i<name.length;i++) h=name.charCodeAt(i)+((h<<5)-h);
   const g=['linear-gradient(135deg,#0d7272,#1a9a9a)','linear-gradient(135deg,#c87800,#f09200)','linear-gradient(135deg,#2a7a4a,#3aaa6a)','linear-gradient(135deg,#6a3a8a,#9a5aba)','linear-gradient(135deg,#8a3030,#c04040)','linear-gradient(135deg,#1a5a8a,#2a7aba)'];
   return g[Math.abs(h)%g.length];
+}
+
+function mealEmoji(name='', mt='') {
+  const n = name.toLowerCase();
+  if (n.includes('chicken') || n.includes('poultry') || n.includes('turkey') || n.includes('duck')) return '🍗';
+  if (n.includes('beef') || n.includes('steak') || n.includes('burger') || n.includes('meatball')) return '🥩';
+  if (n.includes('lamb') || n.includes('mutton')) return '🍖';
+  if (n.includes('pork') || n.includes('bacon') || n.includes('ham') || n.includes('sausage')) return '🥓';
+  if (n.includes('salmon') || n.includes('tuna') || n.includes('cod') || n.includes('halibut')) return '🐟';
+  if (n.includes('shrimp') || n.includes('prawn') || n.includes('lobster') || n.includes('crab')) return '🦐';
+  if (n.includes('pasta') || n.includes('spaghetti') || n.includes('penne') || n.includes('linguine') || n.includes('carbonara') || n.includes('bolognese')) return '🍝';
+  if (n.includes('pizza')) return '🍕';
+  if (n.includes('soup') || n.includes('stew') || n.includes('chowder') || n.includes('borscht') || n.includes('broth')) return '🍲';
+  if (n.includes('salad')) return '🥗';
+  if (n.includes('curry') || n.includes('masala') || n.includes('tikka') || n.includes('korma')) return '🍛';
+  if (n.includes('rice') || n.includes('risotto') || n.includes('pilaf') || n.includes('biryani') || n.includes('paella')) return '🍚';
+  if (n.includes('taco') || n.includes('burrito') || n.includes('enchilada') || n.includes('quesadilla')) return '🌮';
+  if (n.includes('bread') || n.includes('toast') || n.includes('sandwich') || n.includes('wrap') || n.includes('roll')) return '🥪';
+  if (n.includes('egg') || n.includes('omelette') || n.includes('omelette') || n.includes('frittata')) return '🍳';
+  if (n.includes('pancake') || n.includes('waffle') || n.includes('crepe')) return '🥞';
+  if (n.includes('cake') || n.includes('dessert') || n.includes('pie') || n.includes('pudding')) return '🍰';
+  if (n.includes('noodle') || n.includes('ramen') || n.includes('pho') || n.includes('udon')) return '🍜';
+  if (n.includes('sushi') || n.includes('sashimi')) return '🍣';
+  if (n.includes('dumpling') || n.includes('gyoza') || n.includes('vareniki') || n.includes('pierogi')) return '🥟';
+  if (n.includes('vegetable') || n.includes('veg ') || n.includes('tofu')) return '🥦';
+  if (n.includes('mushroom')) return '🍄';
+  if (mt === 'breakfast') return '🥣';
+  if (mt === 'lunch') return '🥙';
+  return '🍽️';
 }
 
 const FONTS=`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap');`;
@@ -305,7 +338,9 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#f4fafa;color:#1a2f2f
 
 export default function App() {
   const [step, setStep]       = useState('landing');
-  const [awk, setAwk]         = useState(null);
+  const [awk, setAwkState]     = useState(null);
+  const awkRef                 = useRef(null);       // stable ref for async closures
+  const setAwk = key => { setAwkState(key); awkRef.current = key; };
   const [prefs, setPrefs]     = useState({...DEFAULT_PREFS});
   const [plan, setPlan]       = useState(null);
   const [costs, setCosts]     = useState({});
@@ -355,8 +390,9 @@ export default function App() {
   const allDone=total>0&&done===total;
 
   function persist(p2,c2,l2,chk2,cu2) {
-    if(!awk||!p2) return;
-    saveWk(awk,{mealPlan:p2,planCosts:c2!=null?c2:costs,prefs,shoppingList:l2!=null?l2:sl,checkedItems:[...(chk2!=null?chk2:chk)],customItems:cu2!=null?cu2:custom});
+    const key = awkRef.current;
+    if(!key||!p2) return;
+    saveWk(key,{mealPlan:p2,planCosts:c2!=null?c2:costs,prefs,shoppingList:l2!=null?l2:sl,checkedItems:[...(chk2!=null?chk2:chk)],customItems:cu2!=null?cu2:custom});
   }
 
   function openPlan(key) {
@@ -453,12 +489,20 @@ export default function App() {
     setLoading(false);
   }
 
-  async function openRecipe(meal,mt) {
-    setRecipe({meal,mt,steps:[],tip:'',photoUrl:null,photoLd:true,loading:true});
+  async function openRecipe(meal,mt,variant) {
+    const isKids = variant==='kids';
+    setRecipe({meal,mt,variant,steps:[],tip:'',photoUrl:null,photoLd:true,loading:true});
     fetchPhoto(meal.name).then(url=>setRecipe(p=>p?{...p,photoUrl:url,photoLd:false}:null));
-    callAI('Detailed recipe for "'+meal.name+'" for '+tsrv+' servings.\nReturn ONLY JSON:{"steps":["Full step 1","Full step 2","Full step 3","Full step 4"],"tip":"one chef tip"}',1200)
-      .then(raw=>{const d=JSON.parse(raw);setRecipe(p=>p?{...p,steps:d.steps||[],tip:d.tip||'',loading:false}:null);})
-      .catch(()=>setRecipe(p=>p?{...p,steps:['Could not load steps.'],loading:false}:null));
+    const srv = isKids ? prefs.kids : tsrv;
+    const prompt = isKids
+      ? `Write a simple, fun, child-friendly recipe for "${meal.name}" for ${srv} kids aged 4-12. Use mild flavours, simple techniques.
+Return ONLY JSON:{"steps":["Step 1 with simple instructions...","Step 2...","Step 3...","Step 4...","Step 5..."],"prepTime":"X min","cookTime":"X min","difficulty":"Easy","tip":"fun tip for kids"}`
+      : `Write a detailed, professional recipe for "${meal.name}" for ${srv} servings.
+Be specific: include exact quantities in each step, cooking temperatures (°C/°F), timing, and key technique details.
+Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","Step 2...","Step 3...","Step 4...","Step 5...","Step 6...","Step 7..."],"prepTime":"X min","cookTime":"X min","difficulty":"Easy|Medium|Hard","tip":"Expert chef tip specific to this dish"}`;
+    callAI(prompt, 1800)
+      .then(raw=>{const d=JSON.parse(raw);setRecipe(p=>p?{...p,steps:d.steps||[],tip:d.tip||'',prepTime:d.prepTime,cookTime:d.cookTime,difficulty:d.difficulty,loading:false}:null);})
+      .catch(()=>setRecipe(p=>p?{...p,steps:['Could not load recipe steps. Please try again.'],loading:false}:null));
   }
 
   // ── LANDING ──────────────────────────────────────────────────────────────────
@@ -586,27 +630,62 @@ export default function App() {
   // ── RECIPE MODAL ─────────────────────────────────────────────────────────────
   function RecipeModal() {
     if(!recipe) return null;
-    const {meal,mt,steps,tip,photoUrl,photoLd,loading:rl}=recipe;
+    const {meal,mt,variant,steps,tip,prepTime,cookTime,difficulty,photoUrl,photoLd,loading:rl}=recipe;
     const ml2={breakfast:'Breakfast',lunch:'Lunch',dinner:'Dinner'};
+    const isKids=variant==='kids';
+    const srv=isKids?prefs.kids:tsrv;
+    const emoji=mealEmoji(meal.name,mt);
     return (
       <div className="ro" onClick={()=>setRecipe(null)}>
         <div className="rm" onClick={e=>e.stopPropagation()}>
-          {photoLd?<div className="rpl"><div className="rsp"/></div>:photoUrl?<img src={photoUrl} alt={meal.name} className="rph" onError={()=>setRecipe(p=>p?{...p,photoUrl:null,photoLd:false}:null)}/>:<div className="rpf" style={{background:grad(meal.name)}}>🍽️</div>}
+          {photoLd
+            ? <div className="rpl"><div className="rsp"/></div>
+            : photoUrl
+              ? <img src={photoUrl} alt={meal.name} className="rph" onError={()=>setRecipe(p=>p?{...p,photoUrl:null,photoLd:false}:null)}/>
+              : <div className="rpf" style={{background:grad(meal.name),flexDirection:'column',gap:8}}>
+                  <span style={{fontSize:72,lineHeight:1}}>{emoji}</span>
+                  <span style={{fontSize:13,color:'rgba(255,255,255,.7)',maxWidth:260,textAlign:'center',lineHeight:1.3}}>{meal.name}</span>
+                </div>
+          }
           <div className="rph2">
-            <div className="rht"><div className="rn">{meal.name}</div><button className="rc" onClick={()=>setRecipe(null)}>×</button></div>
+            <div className="rht">
+              <div>
+                {isKids&&<div style={{fontSize:11,fontWeight:700,color:'#2a7a2a',textTransform:'uppercase',letterSpacing:'.6px',marginBottom:3}}>👧 Kids recipe</div>}
+                <div className="rn">{meal.name}</div>
+              </div>
+              <button className="rc" onClick={()=>setRecipe(null)}>×</button>
+            </div>
             <div className="rps">
-              {meal.time&&<span className="rp">⏱ {meal.time}</span>}
-              <span className="rp">👥 {tsrv} serving{tsrv>1?'s':''}</span>
-              {mt&&<span className="rp">🍽️ {ml2[mt]||mt}</span>}
+              {prepTime&&<span className="rp">🥄 Prep {prepTime}</span>}
+              {cookTime&&<span className="rp">🔥 Cook {cookTime}</span>}
+              {difficulty&&<span className="rp">{difficulty==='Easy'?'🟢':difficulty==='Medium'?'🟡':'🔴'} {difficulty}</span>}
+              {meal.time&&!prepTime&&<span className="rp">⏱ {meal.time}</span>}
+              <span className="rp">👥 {srv} serving{srv!==1?'s':''}</span>
+              {mt&&!isKids&&<span className="rp">🍽️ {ml2[mt]||mt}</span>}
               {prefs.budgetEnabled&&meal.estCost&&<span className="rp">💰 {sym}{meal.estCost}</span>}
             </div>
           </div>
           <div className="rb2">
-            <div className="rst">Ingredients</div>
-            {(meal.ingredients||[]).map((ing,i)=><div key={i} className="ri"><div className="rd"/>{ing}</div>)}
-            {prefs.kids>0&&prefs.kidsDifferentFood&&meal.kidsAlt&&<div style={{background:'#e8f5e8',border:'1px solid #b8d8b8',borderRadius:9,padding:'8px 12px',marginTop:8}}><div style={{fontSize:11,fontWeight:700,color:'#2a7a2a',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:2}}>👧 Kids alternative</div><div style={{fontSize:14,color:'#1a3a1a'}}>{meal.kidsAlt}</div></div>}
+            {meal.ingredients&&meal.ingredients.length>0&&(
+              <>
+                <div className="rst">Ingredients — {srv} serving{srv!==1?'s':''}</div>
+                {meal.ingredients.map((ing,i)=><div key={i} className="ri"><div className="rd"/>{ing}</div>)}
+              </>
+            )}
+            {!isKids&&prefs.kids>0&&prefs.kidsDifferentFood&&meal.kidsAlt&&(
+              <div style={{background:'#e8f5e8',border:'1px solid #b8d8b8',borderRadius:9,padding:'9px 13px',marginTop:10,cursor:'pointer'}} onClick={()=>openRecipe({name:meal.kidsAlt,ingredients:[],time:'~20 min'},mt,'kids')}>
+                <div style={{fontSize:11,fontWeight:700,color:'#2a7a2a',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:2}}>👧 Kids alternative — tap for kids recipe</div>
+                <div style={{fontSize:14,color:'#1a3a1a',fontWeight:500}}>{meal.kidsAlt} →</div>
+              </div>
+            )}
             <div className="rst">How to cook</div>
-            {rl?<div className="rld"><div className="rsp"/><span>Fetching recipe steps…</span></div>:<div>{steps.map((s,i)=><div key={i} className="rstep"><div className="rsn">{i+1}</div><div className="rst2">{s}</div></div>)}{tip&&<div className="rtip">💡 {tip}</div>}</div>}
+            {rl
+              ? <div className="rld"><div className="rsp"/><span>Fetching recipe steps…</span></div>
+              : <div>
+                  {steps.map((s,i)=><div key={i} className="rstep"><div className="rsn">{i+1}</div><div className="rst2">{s}</div></div>)}
+                  {tip&&<div className="rtip">💡 <strong>Chef's tip:</strong> {tip}</div>}
+                </div>
+            }
           </div>
         </div>
       </div>
@@ -803,7 +882,7 @@ export default function App() {
                                 {fv&&<div className="fd">⭐</div>}
                                 <div className="mn" onClick={e=>{e.stopPropagation();openRecipe(m,mt);}}>{m.name}</div>
                                 <div className="md">{m.description}</div>
-                                {prefs.kids>0&&prefs.kidsDifferentFood&&m.kidsAlt&&<div className="mk">👧 {m.kidsAlt}</div>}
+                                {prefs.kids>0&&prefs.kidsDifferentFood&&m.kidsAlt&&<div className="mk" style={{cursor:'pointer'}} onClick={e=>{e.stopPropagation();openRecipe({name:m.kidsAlt,ingredients:[],time:'~20 min',description:'Kid-friendly version'},mt,'kids');}}>👧 {m.kidsAlt} →</div>}
                                 <div className="mm"><span className="mt">⏱ {m.time}</span>{prefs.budgetEnabled&&co!=null&&<span className="mco">{sym}{co}</span>}</div>
                                 <div className="ma" onClick={e=>e.stopPropagation()}>
                                   <button className="ib" onClick={()=>tf(m.name)}>{fv?'⭐':'☆'}</button>
