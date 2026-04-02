@@ -65,8 +65,20 @@ function incrementUsage() {
   saveUsage(next); return next;
 }
 
-function getMondayOf(d) { const r=new Date(d),day=r.getDay(); r.setDate(r.getDate()+(day===0?-6:1-day)); r.setHours(0,0,0,0); return r; }
-function weekKey(d) { return getMondayOf(d).toISOString().slice(0,10); }
+function getMondayOf(d) {
+  const r=new Date(d), day=r.getDay();
+  r.setDate(r.getDate()+(day===0?-6:1-day));
+  r.setHours(0,0,0,0);
+  return r;
+}
+function weekKey(d) {
+  const m=getMondayOf(d);
+  // Use local date parts — toISOString() uses UTC and shifts midnight back in UTC+ timezones
+  const y=m.getFullYear();
+  const mo=String(m.getMonth()+1).padStart(2,'0');
+  const dy=String(m.getDate()).padStart(2,'0');
+  return `${y}-${mo}-${dy}`;
+}
 function cwKey() { return weekKey(new Date()); }
 function weekLabel(k) {
   const m=new Date(k+'T00:00:00'),s=new Date(m); s.setDate(m.getDate()+6);
