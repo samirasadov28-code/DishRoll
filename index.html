@@ -7,6 +7,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="DishRoll — Roll your week. Eat well. AI-powered weekly meal planner with budget tracking and smart shopping lists." />
     <title>DishRoll — Roll your week. Eat well.</title>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YEZ6SPCSN2"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){ dataLayer.push(arguments); }
+      gtag('js', new Date());
+      gtag('config', 'G-YEZ6SPCSN2', {
+        page_title: 'DishRoll',
+        send_page_view: true
+      });
+      // Helper so App.jsx can fire custom events via window.track()
+      window.track = function(name, params) {
+        if(typeof gtag === 'function') gtag('event', name, params || {});
+      };
+    </script>
   </head>
   <body>
     <div id="root"></div>
