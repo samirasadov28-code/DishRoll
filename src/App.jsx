@@ -1,6 +1,11 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.0.6";
+const APP_VERSION = "0.0.8";
+
+// Safe analytics wrapper — calls window.track if GA is loaded
+const track = (name, params) => {
+  try { if(typeof window.track==='function') window.track(name, params); } catch {}
+};
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const DAY_SHORT = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu', Friday:'Fri', Saturday:'Sat', Sunday:'Sun' };
@@ -27,7 +32,7 @@ const DEFAULT_PREFS = {
 const PREMIUM_KEY = 'dishroll-premium';
 const USAGE_KEY   = 'dishroll-usage';
 const FREE_ROLLS_PER_MONTH = 1;
-const PRICE_MONTHLY = '€2.99';
+const PRICE_MONTHLY = '€3.99';
 
 function loadPremium() {
   try { return JSON.parse(localStorage.getItem(PREMIUM_KEY)||'null'); } catch { return null; }
@@ -443,6 +448,7 @@ export default function App() {
           if(d.premium){
             const pdata={email:d.email,customerId:d.customerId,validUntil:d.validUntil};
             savePremium(pdata); setPremium(pdata);
+            track('premium_activated',{email:d.email});
             pop('🎉 Welcome to DishRoll Pro!');
           } else {
             pop('Could not verify payment — please contact support.');
@@ -462,6 +468,7 @@ export default function App() {
   const total=allItems().length;
   const done=allItems().filter(i=>chk.has(i.id)).length;
   const allDone=total>0&&done===total;
+  useEffect(()=>{ if(allDone&&total>0) track('list_completed',{items:total}); },[allDone]);
 
   function persist(p2,c2,l2,chk2,cu2,ks2) {
     const key = awkRef.current;
@@ -512,6 +519,7 @@ export default function App() {
   }
 
   async function startCheckout() {
+    track('upgrade_clicked',{from:step});
     try {
       const r=await fetch('/.netlify/functions/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:premium?.email||''})});
       const d=await r.json();
@@ -527,7 +535,8 @@ export default function App() {
 
   async function roll() {
     // Gate check
-    if(!canRoll){ setShowPaywall(true); return; }
+    if(!canRoll){ setShowPaywall(true); track('paywall_shown',{trigger:'roll_limit'}); return; }
+    track('roll_started',{days:sdays.length,meal_types:prefs.mealTypes.join(','),cuisines:prefs.cuisines.join(','),complexity:prefs.dishComplexity,is_pro:isPro});
     setStep('generating'); setErr('');
     let i=0; setLoadMsg(ROLL_MSGS[0]);
     const iv=setInterval(()=>{i=(i+1)%ROLL_MSGS.length;setLoadMsg(ROLL_MSGS[i]);},2500);
@@ -545,6 +554,7 @@ export default function App() {
       sdays.forEach(d=>prefs.mealTypes.forEach(t=>{const m=p2[d.toLowerCase()]?.[t];if(m&&m.estCost) c2[d.toLowerCase()+'-'+t]=m.estCost;}));
       clearInterval(iv); setPlan(p2); setCosts(c2);
       if(!isPro){ const u=incrementUsage(); setUsage(u); }
+      track('roll_completed',{days:sdays.length,meal_types:prefs.mealTypes.join(','),has_kids:prefs.kids>0&&prefs.kidsDifferentFood,is_pro:isPro});
       persist(p2,c2,null,new Set(),[],new Set()); setStep('mealplan');
     } catch(e) { clearInterval(iv); setErr('Could not roll: '+e.message); setStep('servings'); }
   }
@@ -562,7 +572,9 @@ export default function App() {
     const k=swap.day.toLowerCase()+'-'+swap.mt;
     const nc={...costs,[k]:opt.estCost||0};
     const np={...plan,[swap.day.toLowerCase()]:{...plan[swap.day.toLowerCase()],[swap.mt]:opt}};
-    setCosts(nc); setPlan(np); persist(np,nc,sl,chk,custom,kidsSel); setSwap(null); setSwapOpts([]);
+    setCosts(nc); setPlan(np);
+    track('meal_swapped',{day:swap.day,meal_type:swap.mt,new_meal:opt.name});
+    persist(np,nc,sl,chk,custom,kidsSel); setSwap(null); setSwapOpts([]);
   }
 
   const tgSel=k=>setSel(p=>{const n=new Set(p);n.has(k)?n.delete(k):n.add(k);return n;});
@@ -599,6 +611,7 @@ export default function App() {
       const raw=await callAI(
         `Combine into one grocery list. Merge identical items, keep kids/adult portions separate where different.\nMeals:${JSON.stringify(items)}\nReturn ONLY JSON:{"categories":[{"name":"Produce","items":["2 large onions"]},{"name":"Proteins","items":["600g chicken thighs (adults)","300g chicken breast (kids)"]}]}\nCategories:Produce,Proteins,Dairy,Grains,Pantry,Condiments,Frozen,Bakery,Beverages,Other.`,2400);
       const list=JSON.parse(raw);
+      track('list_built',{adult_meals:sel.size,kids_meals:kidsSel.size,total_items:list.categories.flatMap(c=>c.items).length});
       setSl(list); setChk(new Set()); setCustom([]);
       persist(plan,costs,list,new Set(),[],kidsSel); setStep('list');
     } catch{setErr('Could not build shopping list.');}
@@ -607,6 +620,7 @@ export default function App() {
 
   async function openRecipe(meal,mt,variant) {
     const isKids = variant==='kids';
+    track('recipe_opened',{meal:meal.name,type:isKids?'kids':'adult',meal_type:mt});
     setRecipe({meal,mt,variant,steps:[],tip:'',photoUrl:null,photoLd:true,loading:true});
     fetchPhoto(meal.name).then(url=>setRecipe(p=>p?{...p,photoUrl:url,photoLd:false}:null));
     const srv = isKids ? prefs.kids : tsrv;
