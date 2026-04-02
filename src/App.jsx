@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.0.8";
+const APP_VERSION = "0.0.9";
 
 // Safe analytics wrapper — calls window.track if GA is loaded
 const track = (name, params) => {
@@ -449,7 +449,7 @@ export default function App() {
             const pdata={email:d.email,customerId:d.customerId,validUntil:d.validUntil};
             savePremium(pdata); setPremium(pdata);
             track('premium_activated',{email:d.email});
-            pop('🎉 Welcome to DishRoll Pro!');
+            pop('🎉 Welcome to DishRoll Premium!');
           } else {
             pop('Could not verify payment — please contact support.');
           }
@@ -520,12 +520,7 @@ export default function App() {
 
   async function startCheckout() {
     track('upgrade_clicked',{from:step});
-    try {
-      const r=await fetch('/.netlify/functions/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:premium?.email||''})});
-      const d=await r.json();
-      if(d.url) window.location.href=d.url;
-      else pop('Could not start checkout. Please try again.');
-    } catch { pop('Could not start checkout. Please try again.'); }
+    window.location.href = 'https://buy.stripe.com/dRmfZidobbBQeWZaIx2Ry02';
   }
 
   function cancelPremium() {
@@ -661,7 +656,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
         {isPro ? (
           <div style={{background:'linear-gradient(135deg,#1a5a1a,#2a7a2a)',borderRadius:14,padding:'14px 20px',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
             <div>
-              <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.7)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:3}}>✨ DishRoll Pro</div>
+              <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.7)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:3}}>✨ DishRoll Premium</div>
               <div style={{fontSize:14,color:'#fff',fontWeight:500}}>Unlimited rolls · Active</div>
               <div style={{fontSize:11,color:'rgba(255,255,255,.6)',marginTop:2}}>{premium?.email||''}</div>
             </div>
@@ -674,7 +669,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
               <div style={{fontSize:12,color:'#4a7070'}}>Upgrade for unlimited rolls at {PRICE_MONTHLY}/month</div>
             </div>
             <button onClick={()=>setShowPaywall(true)} style={{padding:'8px 18px',borderRadius:100,border:'none',background:'linear-gradient(135deg,#f09200,#c87800)',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif",whiteSpace:'nowrap'}}>
-              ✨ Go Pro
+              ✨ Go Premium
             </button>
           </div>
         )}
@@ -794,7 +789,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
             </div>
             <div style={{fontSize:14,color:'#4a7070',lineHeight:1.6}}>
               Free plan includes <strong>1 roll per month</strong>.<br/>
-              Upgrade to Pro for unlimited rolls.
+              Upgrade to Premium for unlimited rolls.
             </div>
           </div>
 
@@ -811,10 +806,10 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
               </div>
               <div style={{fontSize:18,fontWeight:700,color:'#0a4848',marginTop:10}}>€0</div>
             </div>
-            {/* Pro */}
+            {/* Premium */}
             <div style={{padding:'14px 16px',borderRadius:12,border:'2px solid #f09200',background:'linear-gradient(135deg,#fffbf0,#fff)',position:'relative'}}>
               <div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',background:'#f09200',color:'#fff',fontSize:10,fontWeight:700,padding:'2px 10px',borderRadius:100,whiteSpace:'nowrap',letterSpacing:'.5px'}}>BEST VALUE</div>
-              <div style={{fontSize:12,fontWeight:700,color:'#c87800',textTransform:'uppercase',letterSpacing:'.6px',marginBottom:8}}>Pro</div>
+              <div style={{fontSize:12,fontWeight:700,color:'#c87800',textTransform:'uppercase',letterSpacing:'.6px',marginBottom:8}}>Premium</div>
               <div style={{fontSize:11,color:'#4a7070',lineHeight:2}}>
                 ✓ <strong>Unlimited</strong> rolls<br/>
                 ✓ All Free features<br/>
@@ -830,7 +825,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
             onClick={startCheckout}
             style={{width:'100%',padding:'13px',borderRadius:100,border:'none',background:'linear-gradient(135deg,#f09200,#c87800)',color:'#fff',fontSize:15,fontWeight:600,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif",marginBottom:10}}
           >
-            ✨ Upgrade to Pro — {PRICE_MONTHLY}/month
+            ✨ Upgrade to Premium — {PRICE_MONTHLY}/month
           </button>
           <button
             onClick={()=>setShowPaywall(false)}
@@ -949,10 +944,10 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
           <img src="/logo.png" alt="DishRoll" className="hdr-logo" onClick={()=>setStep('landing')}/>
           <div className="hdr-r">
             <span className="ver">v{APP_VERSION}</span>
-            {/* Pro / Free badge */}
+            {/* Premium / Free badge */}
             {isPro
-              ? <span style={{fontSize:11,fontWeight:700,background:'linear-gradient(135deg,#f09200,#c87800)',color:'#fff',padding:'3px 9px',borderRadius:100,letterSpacing:'.4px'}}>✨ PRO</span>
-              : <span style={{fontSize:11,fontWeight:600,background:'rgba(255,255,255,.1)',color:'#9adada',padding:'3px 9px',borderRadius:100,cursor:'pointer',letterSpacing:'.4px'}} onClick={()=>setShowPaywall(true)} title="Upgrade to Pro">
+              ? <span style={{fontSize:11,fontWeight:700,background:'linear-gradient(135deg,#f09200,#c87800)',color:'#fff',padding:'3px 9px',borderRadius:100,letterSpacing:'.4px'}}>✨ PREMIUM</span>
+              : <span style={{fontSize:11,fontWeight:600,background:'rgba(255,255,255,.1)',color:'#9adada',padding:'3px 9px',borderRadius:100,cursor:'pointer',letterSpacing:'.4px'}} onClick={()=>setShowPaywall(true)} title="Upgrade to Premium">
                   FREE · {rollsLeft} roll{rollsLeft!==1?'s':''} left
                 </span>
             }
