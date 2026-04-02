@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.0.5";
+const APP_VERSION = "0.0.6";
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 const DAY_SHORT = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu', Friday:'Fri', Saturday:'Sat', Sunday:'Sun' };
@@ -22,6 +22,43 @@ const DEFAULT_PREFS = {
   favoriteMeals:[], favInput:'', adults:2, kids:0, kidsDifferentFood:false,
   currency:'EUR', weeklyBudget:'', budgetEnabled:false,
 };
+
+// ─── PREMIUM / USAGE ──────────────────────────────────────────────────────────
+const PREMIUM_KEY = 'dishroll-premium';
+const USAGE_KEY   = 'dishroll-usage';
+const FREE_ROLLS_PER_MONTH = 1;
+const PRICE_MONTHLY = '€2.99';
+
+function loadPremium() {
+  try { return JSON.parse(localStorage.getItem(PREMIUM_KEY)||'null'); } catch { return null; }
+}
+function savePremium(data) {
+  try { localStorage.setItem(PREMIUM_KEY, JSON.stringify(data)); } catch {}
+}
+function clearPremium() {
+  try { localStorage.removeItem(PREMIUM_KEY); } catch {}
+}
+function isPremiumActive(p) {
+  if(!p) return false;
+  // validUntil is a Unix ms timestamp. Give a 2-day grace period.
+  return p.validUntil > Date.now() - 2*24*60*60*1000;
+}
+function loadUsage() {
+  try {
+    const u = JSON.parse(localStorage.getItem(USAGE_KEY)||'null');
+    const month = new Date().toISOString().slice(0,7); // "2026-04"
+    if(u?.month === month) return u;
+    return { month, count: 0 };
+  } catch { return { month: new Date().toISOString().slice(0,7), count: 0 }; }
+}
+function saveUsage(u) {
+  try { localStorage.setItem(USAGE_KEY, JSON.stringify(u)); } catch {}
+}
+function incrementUsage() {
+  const u = loadUsage();
+  const next = { ...u, count: u.count + 1 };
+  saveUsage(next); return next;
+}
 
 function getMondayOf(d) { const r=new Date(d),day=r.getDay(); r.setDate(r.getDate()+(day===0?-6:1-day)); r.setHours(0,0,0,0); return r; }
 function weekKey(d) { return getMondayOf(d).toISOString().slice(0,10); }
@@ -362,6 +399,14 @@ export default function App() {
   const [toast, setToast]     = useState('');
   const [showT, setShowT]     = useState(false);
   const [upd, setUpd]         = useState(false);
+  const [premium, setPremium] = useState(null);      // {email,customerId,validUntil}
+  const [usage, setUsage]     = useState({month:'',count:0});
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [verifying, setVerifying]    = useState(false); // true while checking Stripe return
+
+  const isPro = isPremiumActive(premium);
+  const rollsLeft = Math.max(0, FREE_ROLLS_PER_MONTH - usage.count);
+  const canRoll   = isPro || rollsLeft > 0;
 
   const sym = CURRENCY_SYMBOLS[prefs.currency]||'€';
   const tsrv = prefs.adults + (prefs.kidsDifferentFood?0:prefs.kids);
@@ -379,7 +424,34 @@ export default function App() {
   const td   = d => { const c=prefs.selectedDays||DAYS; const n=c.includes(d)?c.filter(x=>x!==d):[...c,d]; if(n.length) sp('selectedDays',n); };
   const prog = Math.round(((STEPS_IDX[step]||1)/10)*100);
 
-  useEffect(()=>{ try{const s=localStorage.getItem(FK);if(s)setFavs(JSON.parse(s));}catch{} },[]);
+  useEffect(()=>{
+    // Load favourites
+    try{const s=localStorage.getItem(FK);if(s)setFavs(JSON.parse(s));}catch{}
+    // Load premium + usage
+    const p=loadPremium(); setPremium(p);
+    setUsage(loadUsage());
+    // Handle Stripe checkout return (?session_id=xxx)
+    const params=new URLSearchParams(window.location.search);
+    const sid=params.get('session_id');
+    if(sid){
+      // Clean the URL immediately
+      window.history.replaceState({},document.title,window.location.pathname);
+      setVerifying(true);
+      fetch('/.netlify/functions/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:sid})})
+        .then(r=>r.json())
+        .then(d=>{
+          if(d.premium){
+            const pdata={email:d.email,customerId:d.customerId,validUntil:d.validUntil};
+            savePremium(pdata); setPremium(pdata);
+            pop('🎉 Welcome to DishRoll Pro!');
+          } else {
+            pop('Could not verify payment — please contact support.');
+          }
+        })
+        .catch(()=>pop('Could not verify payment. Try refreshing.'))
+        .finally(()=>setVerifying(false));
+    }
+  },[]);
 
   function allItems() {
     if(!sl) return [];
@@ -439,7 +511,23 @@ export default function App() {
     navigator.clipboard.writeText(txt+cu); pop('List copied to clipboard');
   }
 
+  async function startCheckout() {
+    try {
+      const r=await fetch('/.netlify/functions/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:premium?.email||''})});
+      const d=await r.json();
+      if(d.url) window.location.href=d.url;
+      else pop('Could not start checkout. Please try again.');
+    } catch { pop('Could not start checkout. Please try again.'); }
+  }
+
+  function cancelPremium() {
+    clearPremium(); setPremium(null);
+    pop('Premium subscription removed from this device.');
+  }
+
   async function roll() {
+    // Gate check
+    if(!canRoll){ setShowPaywall(true); return; }
     setStep('generating'); setErr('');
     let i=0; setLoadMsg(ROLL_MSGS[0]);
     const iv=setInterval(()=>{i=(i+1)%ROLL_MSGS.length;setLoadMsg(ROLL_MSGS[i]);},2500);
@@ -456,6 +544,7 @@ export default function App() {
       const c2={};
       sdays.forEach(d=>prefs.mealTypes.forEach(t=>{const m=p2[d.toLowerCase()]?.[t];if(m&&m.estCost) c2[d.toLowerCase()+'-'+t]=m.estCost;}));
       clearInterval(iv); setPlan(p2); setCosts(c2);
+      if(!isPro){ const u=incrementUsage(); setUsage(u); }
       persist(p2,c2,null,new Set(),[],new Set()); setStep('mealplan');
     } catch(e) { clearInterval(iv); setErr('Could not roll: '+e.message); setStep('servings'); }
   }
@@ -553,6 +642,28 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
           <div><div className="fuv">v{APP_VERSION}</div><div className="fuh">DishRoll · {new Date().getFullYear()}</div></div>
           <button className="fubtn" onClick={forceUpdate} disabled={upd}><span className={upd?'spin':''} style={{display:'inline-block'}}>↻</span>{upd?'Updating…':'Force update'}</button>
         </div>
+
+        {/* Plan status card */}
+        {isPro ? (
+          <div style={{background:'linear-gradient(135deg,#1a5a1a,#2a7a2a)',borderRadius:14,padding:'14px 20px',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
+            <div>
+              <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.7)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:3}}>✨ DishRoll Pro</div>
+              <div style={{fontSize:14,color:'#fff',fontWeight:500}}>Unlimited rolls · Active</div>
+              <div style={{fontSize:11,color:'rgba(255,255,255,.6)',marginTop:2}}>{premium?.email||''}</div>
+            </div>
+            <span style={{fontSize:12,color:'rgba(255,255,255,.5)',cursor:'pointer',textDecoration:'underline'}} onClick={cancelPremium}>Remove from device</span>
+          </div>
+        ) : (
+          <div style={{background:'#fff',borderRadius:14,padding:'14px 20px',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12,border:'1.5px solid #c8e4e4'}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:600,color:'#0a4848',marginBottom:2}}>Free plan — {rollsLeft} roll{rollsLeft!==1?'s':''} left this month</div>
+              <div style={{fontSize:12,color:'#4a7070'}}>Upgrade for unlimited rolls at {PRICE_MONTHLY}/month</div>
+            </div>
+            <button onClick={()=>setShowPaywall(true)} style={{padding:'8px 18px',borderRadius:100,border:'none',background:'linear-gradient(135deg,#f09200,#c87800)',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif",whiteSpace:'nowrap'}}>
+              ✨ Go Pro
+            </button>
+          </div>
+        )}
         <div className="cwc">
           <div><div className="cwt">📅 This week</div><div className="cww">{weekLabel(ck)}</div><div className="cws">{cwd?'✓ Already rolled — open or roll again':'🎲 Not rolled yet — start now!'}</div></div>
           <div className="cwa">
@@ -655,6 +766,75 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
   }
 
   // ── RECIPE MODAL ─────────────────────────────────────────────────────────────
+  // ── PAYWALL MODAL ─────────────────────────────────────────────────────────────
+  function PaywallModal() {
+    if(!showPaywall) return null;
+    return (
+      <div className="mo" onClick={()=>setShowPaywall(false)}>
+        <div className="md2" onClick={e=>e.stopPropagation()} style={{maxWidth:420}}>
+          {/* Header */}
+          <div style={{textAlign:'center',marginBottom:22}}>
+            <div style={{fontSize:44,marginBottom:8}}>🎲</div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,fontWeight:600,color:'#0a4848',marginBottom:6}}>
+              You've used your free roll
+            </div>
+            <div style={{fontSize:14,color:'#4a7070',lineHeight:1.6}}>
+              Free plan includes <strong>1 roll per month</strong>.<br/>
+              Upgrade to Pro for unlimited rolls.
+            </div>
+          </div>
+
+          {/* Plan comparison */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:20}}>
+            {/* Free */}
+            <div style={{padding:'14px 16px',borderRadius:12,border:'1.5px solid #c8e4e4',background:'#f8fefe'}}>
+              <div style={{fontSize:12,fontWeight:700,color:'#7a9898',textTransform:'uppercase',letterSpacing:'.6px',marginBottom:8}}>Free</div>
+              <div style={{fontSize:11,color:'#4a7070',lineHeight:2}}>
+                ✓ 1 roll/month<br/>
+                ✓ Shopping list<br/>
+                ✓ Week calendar<br/>
+                ✓ Recipes
+              </div>
+              <div style={{fontSize:18,fontWeight:700,color:'#0a4848',marginTop:10}}>€0</div>
+            </div>
+            {/* Pro */}
+            <div style={{padding:'14px 16px',borderRadius:12,border:'2px solid #f09200',background:'linear-gradient(135deg,#fffbf0,#fff)',position:'relative'}}>
+              <div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',background:'#f09200',color:'#fff',fontSize:10,fontWeight:700,padding:'2px 10px',borderRadius:100,whiteSpace:'nowrap',letterSpacing:'.5px'}}>BEST VALUE</div>
+              <div style={{fontSize:12,fontWeight:700,color:'#c87800',textTransform:'uppercase',letterSpacing:'.6px',marginBottom:8}}>Pro</div>
+              <div style={{fontSize:11,color:'#4a7070',lineHeight:2}}>
+                ✓ <strong>Unlimited</strong> rolls<br/>
+                ✓ All Free features<br/>
+                ✓ Kids meal rows<br/>
+                ✓ Full history
+              </div>
+              <div style={{fontSize:18,fontWeight:700,color:'#c87800',marginTop:10}}>{PRICE_MONTHLY}<span style={{fontSize:12,color:'#7a9898',fontWeight:400}}>/mo</span></div>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <button
+            onClick={startCheckout}
+            style={{width:'100%',padding:'13px',borderRadius:100,border:'none',background:'linear-gradient(135deg,#f09200,#c87800)',color:'#fff',fontSize:15,fontWeight:600,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif",marginBottom:10}}
+          >
+            ✨ Upgrade to Pro — {PRICE_MONTHLY}/month
+          </button>
+          <button
+            onClick={()=>setShowPaywall(false)}
+            style={{width:'100%',padding:'10px',borderRadius:100,border:'1.5px solid #c8e4e4',background:'transparent',color:'#4a7070',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"}}
+          >
+            Maybe later
+          </button>
+
+          {/* Restore */}
+          <div style={{textAlign:'center',marginTop:14,fontSize:12,color:'#9abcbc'}}>
+            Already subscribed on another device?{' '}
+            <span style={{color:'#0d7272',cursor:'pointer',textDecoration:'underline'}} onClick={startCheckout}>Restore access</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   function RecipeModal() {
     if(!recipe) return null;
     const {meal,mt,variant,steps,tip,prepTime,cookTime,difficulty,photoUrl,photoLd,loading:rl}=recipe;
@@ -742,11 +922,26 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
   return (
     <div>
       <style>{FONTS+CSS}</style>
+      {/* Verifying overlay */}
+      {verifying&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(10,40,40,.7)',zIndex:400,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:16,backdropFilter:'blur(6px)'}}>
+          <div style={{width:40,height:40,border:'3px solid rgba(255,255,255,.3)',borderTopColor:'#f09200',borderRadius:'50%',animation:'rspin .8s linear infinite'}}/>
+          <div style={{color:'#fff',fontSize:16,fontWeight:500}}>Verifying your subscription…</div>
+        </div>
+      )}
+
       <div className="app">
         <div className="hdr">
           <img src="/logo.png" alt="DishRoll" className="hdr-logo" onClick={()=>setStep('landing')}/>
           <div className="hdr-r">
             <span className="ver">v{APP_VERSION}</span>
+            {/* Pro / Free badge */}
+            {isPro
+              ? <span style={{fontSize:11,fontWeight:700,background:'linear-gradient(135deg,#f09200,#c87800)',color:'#fff',padding:'3px 9px',borderRadius:100,letterSpacing:'.4px'}}>✨ PRO</span>
+              : <span style={{fontSize:11,fontWeight:600,background:'rgba(255,255,255,.1)',color:'#9adada',padding:'3px 9px',borderRadius:100,cursor:'pointer',letterSpacing:'.4px'}} onClick={()=>setShowPaywall(true)} title="Upgrade to Pro">
+                  FREE · {rollsLeft} roll{rollsLeft!==1?'s':''} left
+                </span>
+            }
             {hasSl&&step!=='list'&&<button className="btn bg bsm" onClick={()=>setStep('list')}>🛒 My list{done>0?' ('+done+'/'+total+')':''}</button>}
             {step!=='landing'&&step!=='generating'&&<button className="btn bg bsm" onClick={()=>setStep('landing')}>← Home</button>}
           </div>
@@ -975,6 +1170,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
         </div>
         <RecipeModal/>
         <SwapModal/>
+        <PaywallModal/>
         {showT&&<div className="tst">{toast}</div>}
       </div>
     </div>
