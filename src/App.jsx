@@ -208,7 +208,7 @@ function hashGrad(name = "") {
 const DPREFS = {
   scope: "dinner", types: ["dinner"], days: [...DAYS],
   cuisines: [], dietary: [], adventure: 40, complexity: "any",
-  favMeals: [], favInput: "",
+  favMeals: [], favInput: "", cusInput: "",
   adults: 2, kids: 0, kidsDiff: false,
   currency: "EUR", budget: "", budgetOn: false,
 };
@@ -512,16 +512,16 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .strip-upgrade{padding:7px 16px;border-radius:100px;border:none;background:#c4622d;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap}
 
 /* current week card */
-.cw-card{background:linear-gradient(145deg,#1a4a2a,#2a6a3a);border-radius:22px;padding:24px;color:#fff;margin-bottom:22px}
+.cw-card{background:linear-gradient(145deg,#1a4a2a,#2a6a3a);border-radius:20px;padding:20px;color:#fff;margin-bottom:20px;overflow:hidden}
 .cw-eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,.5);margin-bottom:7px}
-.cw-range{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;margin-bottom:5px}
+.cw-range{font-family:'Cormorant Garamond',serif;font-size:clamp(15px,4.5vw,24px);font-weight:600;margin-bottom:5px;line-height:1.25;word-break:break-word}
 .cw-status{font-size:13px;color:rgba(255,255,255,.65);margin-bottom:16px}
-.cw-meal-pills{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}
+.cw-meal-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
 .cw-pill{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:500;padding:4px 12px;border-radius:100px}
-.cw-actions{display:flex;gap:8px;flex-wrap:wrap}
-.cw-btn-p{background:#fff;color:#1a4a2a;border:none;padding:10px 20px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s}
+.cw-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.cw-btn-p{background:#fff;color:#1a4a2a;border:none;padding:9px 16px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s;white-space:nowrap}
 .cw-btn-p:hover{background:#f0f5e8;transform:translateY(-1px)}
-.cw-btn-s{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.4);padding:9px 18px;border-radius:100px;font-size:13px;font-weight:500;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s}
+.cw-btn-s{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.4);padding:8px 14px;border-radius:100px;font-size:13px;font-weight:500;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s;white-space:nowrap}
 .cw-btn-s:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.7)}
 
 /* list strip */
@@ -851,16 +851,35 @@ export default function App() {
     const isKids = variant === "kids";
     track("recipe_opened", { meal: meal.name, type: isKids ? "kids" : "adult", mt });
     setRecipe({ meal, mt, variant, steps: [], tip: "", prepTime: "", cookTime: "", difficulty: "", photoUrl: null, photoLd: true, stepsLd: true });
-    // fetch photo
-    fetchPhoto(meal.name, mt).then(url => setRecipe(p => p ? { ...p, photoUrl: url, photoLd: false } : null));
-    // fetch recipe steps
+    // Photo: always resolves to something (guaranteed fallback in fetchPhoto)
+    fetchPhoto(meal.name, mt).then(url => setRecipe(p => p ? { ...p, photoUrl: url || getPhotoByName(meal.name, mt), photoLd: false } : null));
+    // Recipe: detailed prompt with retry on failure
     const srv = isKids ? prefs.kids : tsrv;
     const prompt = isKids
-      ? `Write a simple child-friendly recipe for "${meal.name}" for ${srv} kids aged 4-12. Mild flavours, simple steps.\nReturn ONLY JSON:{"steps":["Step 1...","Step 2...","Step 3...","Step 4..."],"tip":"fun tip for kids","prepTime":"X min","cookTime":"X min","difficulty":"Easy"}`
-      : `Write a detailed recipe for "${meal.name}" for ${srv} servings. Include exact quantities, temperatures (°C), and timing in each step.\nReturn ONLY JSON:{"steps":["Step 1 with exact details...","Step 2...","Step 3...","Step 4...","Step 5...","Step 6..."],"tip":"expert chef tip","prepTime":"X min","cookTime":"X min","difficulty":"Easy|Medium|Hard"}`;
-    callAI(prompt, 1800)
-      .then(raw => { const d = JSON.parse(raw); setRecipe(p => p ? { ...p, steps: d.steps || [], tip: d.tip || "", prepTime: d.prepTime || "", cookTime: d.cookTime || "", difficulty: d.difficulty || "", stepsLd: false } : null); })
-      .catch(() => setRecipe(p => p ? { ...p, steps: ["Could not load recipe steps. Please try again."], stepsLd: false } : null));
+      ? `Write a simple, fun child-friendly recipe for "${meal.name}" for ${srv} kids (ages 4–12). Use mild flavours and simple techniques a child can help with.
+Return ONLY JSON:{"steps":["Step 1 with detail...","Step 2...","Step 3...","Step 4...","Step 5..."],"tip":"a fun tip for cooking with kids","prepTime":"X min","cookTime":"X min","difficulty":"Easy"}`
+      : `Write a detailed, professional home cook recipe for "${meal.name}" for ${srv} servings.
+Rules: each step must include exact ingredient quantities, specific cooking temperatures in °C, and precise timing. Minimum 7 steps. Be thorough — a beginner should be able to follow this exactly.
+Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applicable, time]. [tip]","Step 2:...","Step 3:...","Step 4:...","Step 5:...","Step 6:...","Step 7:..."],"tip":"One expert chef insight specific to this dish","prepTime":"X min","cookTime":"X min","difficulty":"Easy|Medium|Hard"}`;
+    const tryLoad = async (attempt) => {
+      try {
+        const raw = await callAI(prompt, 2200);
+        const d = JSON.parse(raw);
+        if (!d.steps || d.steps.length === 0) throw new Error("empty");
+        setRecipe(p => p ? { ...p, steps: d.steps, tip: d.tip || "", prepTime: d.prepTime || "", cookTime: d.cookTime || "", difficulty: d.difficulty || "", stepsLd: false } : null);
+      } catch (e) {
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 1000));
+          return tryLoad(attempt + 1);
+        }
+        // Always show something — use ingredients list as fallback
+        const fallback = meal.ingredients && meal.ingredients.length > 0
+          ? [`Prepare all ingredients: ${meal.ingredients.slice(0,5).join(", ")}${meal.ingredients.length > 5 ? " and more" : ""}. Cook according to standard method for ${meal.name}. Season to taste and serve hot.`]
+          : [`Cook ${meal.name} according to your preferred method. Season well and serve.`];
+        setRecipe(p => p ? { ...p, steps: fallback, tip: "Recipe details unavailable — tap ↻ on the meal card to swap for a different dish.", stepsLd: false } : null);
+      }
+    };
+    tryLoad(0);
   }
 
   // checkout
@@ -1288,6 +1307,36 @@ export default function App() {
               <div className="card">
                 <div className="label">Select your favourites</div>
                 <div className="chip-group">{CUISINES.map(c => <div key={c} className={`chip${prefs.cuisines.includes(c) ? " sel" : ""}`} onClick={() => { const n = prefs.cuisines.includes(c) ? prefs.cuisines.filter(x => x !== c) : [...prefs.cuisines, c]; sp("cuisines", n); }}>{c}</div>)}</div>
+                {prefs.cuisines.filter(c => !CUISINES.includes(c)).map(c => (
+                  <div key={c} className="chip sel" style={{display:"inline-flex",alignItems:"center",gap:6}}>
+                    {c}
+                    <button onClick={() => sp("cuisines", prefs.cuisines.filter(x => x !== c))} style={{background:"none",border:"none",cursor:"pointer",color:"rgba(255,255,255,.7)",fontSize:14,lineHeight:1,padding:"0 1px"}}>×</button>
+                  </div>
+                ))}
+              </div>
+              <div className="card" style={{marginTop:0}}>
+                <div className="label">Add a custom cuisine</div>
+                <div style={{display:"flex",gap:9,alignItems:"center"}}>
+                  <input
+                    className="inp"
+                    placeholder="e.g. Georgian, Peruvian, Korean…"
+                    value={prefs.cusInput||""}
+                    onChange={e => sp("cusInput", e.target.value)}
+                    onKeyDown={e => {
+                      if(e.key==="Enter" && prefs.cusInput?.trim()) {
+                        const val = prefs.cusInput.trim();
+                        if(!prefs.cuisines.includes(val)) sp("cuisines", [...prefs.cuisines, val]);
+                        sp("cusInput","");
+                      }
+                    }}
+                    style={{flex:1}}
+                  />
+                  <button className="btn btn-ghost btn-sm" onClick={() => {
+                    const val = (prefs.cusInput||"").trim();
+                    if(val && !prefs.cuisines.includes(val)) sp("cuisines", [...prefs.cuisines, val]);
+                    sp("cusInput","");
+                  }}>Add</button>
+                </div>
               </div>
               <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("days")}>← Back</button><button className="btn btn-primary" onClick={() => setStep("dietary")}>Continue →</button></div>
             </div>
