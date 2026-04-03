@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.2.0";
+const APP_VERSION = "0.2.2";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -359,6 +359,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .meal-card.kids-card.picked{border-color:#5a8a2a;background:linear-gradient(135deg,#eef7e4,#fafff6)}
 .meal-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .meal-card-flag{font-size:24px;line-height:1;flex-shrink:0;margin-top:2px}
+.meal-card-thumb{width:64px;height:64px;border-radius:12px;object-fit:cover;flex-shrink:0;background:#e8e4d8;display:block}
+.meal-card-thumb-wrap{width:64px;height:64px;border-radius:12px;background:#e8e4d8;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:28px}
 .meal-card-title-wrap{flex:1;min-width:0}
 .meal-card-name{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:#1a3a1a;line-height:1.2;margin-bottom:4px}
 .meal-card-name:hover{color:#2a6a3a}
@@ -759,7 +761,7 @@ export default function App() {
       const cn = prefs.complexity === "simple" ? "Prefer quick easy dishes under 30 minutes." : prefs.complexity === "elaborate" ? "Include impressive multi-step recipes." : "";
       const kf = prefs.kids > 0 && prefs.kidsDiff ? `,"kidsAlt":{"name":"kids dish name","ingredients":["qty item"]}` : "";
       const kn = prefs.kids > 0 && prefs.kidsDiff ? `Each meal must include "kidsAlt":{"name":"child-friendly dish","ingredients":["qty item"]} for ${prefs.kids} kids, mild and simple.` : "";
-      const mealShape = `{"name":"meal name","description":"8 word description","time":"X min","estCost":0.00,"ingredients":["qty item"]${kf}}`;
+      const mealShape = `{"name":"meal name","description":"First sentence about key ingredients and cooking method. Second sentence about flavour profile or why it works.","time":"X min","estCost":0.00,"ingredients":["qty item"]${kf}}`;
       const daySchema = `{${prefs.types.map(t => `"${t}":${mealShape}`).join(",")}}`;
       const dJ = selDays.map(d => `"${d.toLowerCase()}":${daySchema}`).join(",");
       const raw = await callAI(
@@ -790,7 +792,7 @@ export default function App() {
     try {
       const raw = await callAI(
         `3 alternative ${mt} recipes to replace "${cur.name}". Cuisines:${prefs.cuisines.join(",") || "any"}. Dietary:${prefs.dietary.join(",") || "none"}. Complexity:${prefs.complexity}. Servings:${tsrv}.\n` +
-        `Return ONLY JSON array:[{"name":"...","description":"8w","time":"X min","estCost":0.00,"ingredients":["qty item"]},...]`,
+        `Return ONLY JSON array:[{"name":"...","description":"Two sentences: ingredients/method then flavour profile.","time":"X min","estCost":0.00,"ingredients":["qty item"]},...]`,
         1200
       );
       setSwapOpts(JSON.parse(raw));
@@ -852,7 +854,7 @@ export default function App() {
     track("recipe_opened", { meal: meal.name, type: isKids ? "kids" : "adult", mt });
     setRecipe({ meal, mt, variant, steps: [], tip: "", prepTime: "", cookTime: "", difficulty: "", photoUrl: null, photoLd: true, stepsLd: true });
     // Photo: always resolves to something (guaranteed fallback in fetchPhoto)
-    fetchPhoto(meal.name, mt).then(url => setRecipe(p => p ? { ...p, photoUrl: url || getPhotoByName(meal.name, mt), photoLd: false } : null));
+    fetchPhoto(meal.name, mt).then(url => setRecipe(p => p ? { ...p, photoUrl: url || photoFallback(meal.name, mt), photoLd: false } : null));
     // Recipe: detailed prompt with retry on failure
     const srv = isKids ? prefs.kids : tsrv;
     const prompt = isKids
@@ -886,6 +888,51 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
   function startCheckout() {
     track("upgrade_clicked", { from: step });
     window.location.href = "https://buy.stripe.com/dRmfZidobbBQeWZaIx2Ry02";
+  }
+
+  // ─── MEAL CARD (with lazy thumbnail) ────────────────────────────────────────
+  function MealCard({ meal, mt, k, isSel, isFav, cFlag, cuisine, onPick, onRecipe, onFav, onSwap, sym, costs, prefs, tsrv }) {
+    const [imgSrc, setImgSrc] = useState(null);
+    const [imgErr, setImgErr] = useState(false);
+    useEffect(() => {
+      let alive = true;
+      fetchPhoto(meal.name, mt).then(url => { if(alive) setImgSrc(url || photoFallback(meal.name, mt)); });
+      return () => { alive = false; };
+    }, [meal.name, mt]);
+    return (
+      <div className={`meal-card${isSel?" picked":""}`} onClick={onPick}>
+        {isSel && <div className="card-sel-badge">✓</div>}
+        <div className="meal-card-top">
+          {/* Thumbnail or flag */}
+          {!imgErr && imgSrc
+            ? <img src={imgSrc} alt={meal.name} className="meal-card-thumb" onError={()=>setImgErr(true)} />
+            : <div className="meal-card-thumb-wrap">{cFlag}</div>
+          }
+          <div className="meal-card-title-wrap">
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+              {!imgSrc && <span style={{fontSize:18,lineHeight:1}}>{cFlag}</span>}
+              {cuisine && <div className="meal-card-cuisine">{cuisine}</div>}
+              {isFav && <span className="card-fav-dot">⭐</span>}
+            </div>
+            <div className="meal-card-name" onClick={e=>{e.stopPropagation();onRecipe();}}>{meal.name}</div>
+          </div>
+        </div>
+        {meal.description && <div className="meal-card-desc">{meal.description}</div>}
+        <div className="meal-card-footer">
+          <div className="meal-card-pills">
+            {meal.time && <span className="meal-pill-item">⏱ {meal.time}</span>}
+            {tsrv>1 && <span className="meal-pill-item">👥 {tsrv}</span>}
+            {prefs.budgetOn && costs[k]!=null && <span className="meal-pill-item green">💰 {sym}{costs[k]}</span>}
+            {isSel && <span className="meal-pill-item green">✓ In basket</span>}
+          </div>
+          <div className="meal-card-actions" onClick={e=>e.stopPropagation()}>
+            <button className="meal-action-btn" title={isFav?"Remove favourite":"Add favourite"} onClick={onFav}>{isFav?"⭐":"☆"}</button>
+            <button className="meal-action-btn" title="View recipe" onClick={onRecipe}>📖</button>
+            <button className="meal-action-btn" title="Swap meal" onClick={onSwap}>↻</button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // ─── LANDING ────────────────────────────────────────────────────────────────
@@ -1507,7 +1554,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                         const k = `${day.toLowerCase()}-${mt}`;
                         const isSel = picked.has(k), isFav = favs.includes(m.name);
                         const cuisine = detectCuisine(m.name, m.description||"");
-                        const cFlag = cuisine ? (CUISINE_FLAGS[cuisine]||"🍽️") : "🍽️";
+                        const cFlag = cuisine ? (CUISINE_FLAGS[cuisine]||"🌍") : "🌍";
                         // Kids alt
                         const ka = m.kidsAlt;
                         const kname = ka && typeof ka==="object" ? ka.name : ka;
@@ -1520,31 +1567,16 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                             <div className="mt-section">
                               <div className="mt-label">{ML[mt]}</div>
                               {/* Adult card */}
-                              <div className={`meal-card${isSel?" picked":""}`} onClick={() => togglePick(k)}>
-                                {isSel && <div className="card-sel-badge">✓</div>}
-                                <div className="meal-card-top">
-                                  <div className="meal-card-flag">{cFlag}</div>
-                                  <div className="meal-card-title-wrap">
-                                    {cuisine && <div className="meal-card-cuisine">{cuisine}</div>}
-                                    <div className="meal-card-name" onClick={e=>{ e.stopPropagation(); openRecipe(m,mt); }}>{m.name}</div>
-                                  </div>
-                                  {isFav && <div className="card-fav-dot">⭐</div>}
-                                </div>
-                                {m.description && <div className="meal-card-desc">{m.description}</div>}
-                                <div className="meal-card-footer">
-                                  <div className="meal-card-pills">
-                                    {m.time && <span className="meal-pill-item">⏱ {m.time}</span>}
-                                    {tsrv>1 && <span className="meal-pill-item">👥 {tsrv} servings</span>}
-                                    {prefs.budgetOn && costs[k]!=null && <span className="meal-pill-item green">💰 {sym}{costs[k]}</span>}
-                                    {isSel && <span className="meal-pill-item green">✓ In basket</span>}
-                                  </div>
-                                  <div className="meal-card-actions" onClick={e=>e.stopPropagation()}>
-                                    <button className="meal-action-btn" title={isFav?"Remove favourite":"Add favourite"} onClick={()=>toggleFav(m.name)}>{isFav?"⭐":"☆"}</button>
-                                    <button className="meal-action-btn" title="View recipe" onClick={()=>openRecipe(m,mt)}>📖</button>
-                                    <button className="meal-action-btn" title="Swap meal" onClick={()=>openSwap(day,mt)}>↻</button>
-                                  </div>
-                                </div>
-                              </div>
+                              <MealCard
+                                meal={m} mt={mt} k={k}
+                                isSel={isSel} isFav={isFav}
+                                cFlag={cFlag} cuisine={cuisine}
+                                onPick={() => togglePick(k)}
+                                onRecipe={() => openRecipe(m,mt)}
+                                onFav={() => toggleFav(m.name)}
+                                onSwap={() => openSwap(day,mt)}
+                                sym={sym} costs={costs} prefs={prefs} tsrv={tsrv}
+                              />
 
                               {/* Kids card */}
                               {prefs.kids>0 && prefs.kidsDiff && kname && (
