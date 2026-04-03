@@ -7,6 +7,36 @@ const track = (n, p) => { try { if (typeof window.track === "function") window.t
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const DAY3 = { Monday:"Mon",Tuesday:"Tue",Wednesday:"Wed",Thursday:"Thu",Friday:"Fri",Saturday:"Sat",Sunday:"Sun" };
+
+const CUISINE_FLAGS = {
+  Italian:"🇮🇹", Asian:"🌏", Mexican:"🇲🇽", Mediterranean:"🇬🇷",
+  Indian:"🇮🇳", French:"🇫🇷", American:"🇺🇸", "Middle Eastern":"🌙",
+  Japanese:"🇯🇵", Thai:"🇹🇭", Greek:"🇬🇷", Spanish:"🇪🇸",
+  Moroccan:"🇲🇦", Lebanese:"🇱🇧", Vietnamese:"🇻🇳",
+  Ukrainian:"🇺🇦", Azerbaijani:"🇦🇿",
+};
+
+// Detect which cuisine a meal belongs to based on its name/description
+function detectCuisine(name="", desc="") {
+  const t = (name+" "+desc).toLowerCase();
+  if(/pasta|pizza|risotto|carbonara|bolognese|lasagne|tiramisu|pesto|parmesan|gnocchi|fettuccine/.test(t)) return "Italian";
+  if(/sushi|ramen|tempura|teriyaki|miso|udon|soba|katsu|yakitori|tonkatsu/.test(t)) return "Japanese";
+  if(/curry|masala|tikka|korma|dal|biryani|naan|paneer|samosa|tandoori/.test(t)) return "Indian";
+  if(/taco|burrito|enchilada|quesadilla|fajita|guacamole|salsa|tortilla|tamale/.test(t)) return "Mexican";
+  if(/croissant|baguette|ratatouille|bouillabaisse|coq au vin|cassoulet|crêpe|soufflé/.test(t)) return "French";
+  if(/pad thai|tom yum|green curry|massaman|som tam|larb|satay/.test(t)) return "Thai";
+  if(/pho|banh mi|spring roll|lemongrass|vietnamese/.test(t)) return "Vietnamese";
+  if(/tagine|couscous|harissa|ras el hanout|chermoula|moroccan/.test(t)) return "Moroccan";
+  if(/hummus|falafel|shawarma|kibbeh|tabbouleh|baba ganoush/.test(t)) return "Lebanese";
+  if(/paella|gazpacho|chorizo|manchego|patatas bravas|tortilla española/.test(t)) return "Spanish";
+  if(/moussaka|souvlaki|gyros|tzatziki|spanakopita|dolmades|baklava/.test(t)) return "Greek";
+  if(/borscht|pierogi|varenyky|holubtsi|kulesh|salo|borshch/.test(t)) return "Ukrainian";
+  if(/dolma|plov|laghman|shashlik|kazan/.test(t)) return "Azerbaijani";
+  if(/burger|bbq|mac and cheese|hot dog|buffalo|chowder/.test(t)) return "American";
+  if(/falafel|shakshuka|kebab|za'atar|tahini/.test(t)) return "Middle Eastern";
+  return null;
+}
+
 const CUISINES = ["Italian","Asian","Mexican","Mediterranean","Indian","French","American","Middle Eastern","Japanese","Thai","Greek","Spanish","Moroccan","Lebanese","Vietnamese","Ukrainian","Azerbaijani"];
 const DIETARY = ["Vegetarian","Vegan","Gluten-Free","Dairy-Free","Keto","Paleo","Nut-Free","Low-Carb","High-Protein","Pescatarian"];
 const CURRENCY = { EUR:"€", GBP:"£", USD:"$", CAD:"CA$", AUD:"A$" };
@@ -316,25 +346,51 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .gen-sub{font-size:13px;color:#8a9a7a}
 
 /* ── MEAL PLAN GRID ── */
-.meal-grid{display:grid;gap:5px}
-.col-hdr{font-size:10px;font-weight:600;color:#8a9a7a;text-align:center;padding:6px 2px;text-transform:uppercase;letter-spacing:.5px}
-.row-lbl{font-size:11px;font-weight:600;color:#1a3a1a;display:flex;align-items:center;padding:4px 5px;line-height:1.3}
-.row-lbl.kids-lbl{color:#3a6a1a;font-size:10px}
-.meal-cell{background:#fff;border-radius:12px;padding:9px 8px;border:1.5px solid #e0ddd0;position:relative;min-height:106px;display:flex;flex-direction:column;transition:all .18s;cursor:pointer}
-.meal-cell:hover{border-color:#a0c090;box-shadow:0 2px 8px rgba(30,60,20,.08)}
-.meal-cell.picked{border-color:#2a6a3a;background:#f4f8ec}
-.meal-cell.kids-picked{border-color:#5a8a2a;background:#f0f7e4}
-.meal-name{font-size:11px;font-weight:600;color:#1a3a1a;line-height:1.3;margin-bottom:2px;cursor:pointer}
-.meal-name:hover{color:#2a6a3a;text-decoration:underline}
-.meal-desc{font-size:10px;color:#6a7a5a;line-height:1.4;flex:1}
-.meal-meta{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
-.meal-time{font-size:10px;color:#8a9a7a}
-.meal-cost{font-size:10px;font-weight:600;color:#5a6a2a;background:#eef5d8;padding:1px 5px;border-radius:4px}
-.meal-actions{display:flex;gap:2px;margin-top:4px}
+/* ── MEAL PLAN CARD GRID ─────────────────────────────────────────── */
+.day-section{margin-bottom:32px}
+.day-section-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#1a3a1a;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.day-section-date{font-size:13px;color:#8a9a7a;font-family:'Plus Jakarta Sans',sans-serif;font-weight:400}
+.mt-section{margin-bottom:10px}
+.mt-label{font-size:11px;font-weight:700;color:#8a9a7a;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;padding-left:2px}
+.meal-card{background:#fff;border-radius:18px;padding:18px;border:1.5px solid #e0ddd0;position:relative;display:flex;flex-direction:column;gap:10px;transition:all .2s;cursor:pointer;overflow:hidden}
+.meal-card:hover{border-color:#a0c090;box-shadow:0 4px 16px rgba(26,60,20,.1);transform:translateY(-1px)}
+.meal-card.picked{border-color:#2a6a3a;background:linear-gradient(135deg,#f4f8ec,#fff)}
+.meal-card.kids-card{background:#fafff6;border-color:#c8e0b8}
+.meal-card.kids-card.picked{border-color:#5a8a2a;background:linear-gradient(135deg,#eef7e4,#fafff6)}
+.meal-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.meal-card-flag{font-size:24px;line-height:1;flex-shrink:0;margin-top:2px}
+.meal-card-title-wrap{flex:1;min-width:0}
+.meal-card-name{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:#1a3a1a;line-height:1.2;margin-bottom:4px}
+.meal-card-name:hover{color:#2a6a3a}
+.meal-card-cuisine{font-size:11px;color:#8a9a7a;font-weight:500;text-transform:uppercase;letter-spacing:.6px}
+.meal-card-desc{font-size:14px;color:#4a5a3a;line-height:1.6;font-weight:300}
+.meal-card-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.meal-card-pills{display:flex;gap:6px;flex-wrap:wrap}
+.meal-pill-item{display:inline-flex;align-items:center;gap:4px;background:#f4f0e8;border:1px solid #e0ddd0;border-radius:100px;padding:3px 10px;font-size:12px;color:#5a5a3a;font-weight:500}
+.meal-pill-item.green{background:#f0f7e4;border-color:#c8d8b8;color:#3a5a2a}
+.meal-card-actions{display:flex;gap:4px}
+.meal-action-btn{background:#f4f0e8;border:none;cursor:pointer;padding:6px 10px;border-radius:100px;font-size:13px;transition:all .16s;line-height:1;color:#5a6a4a}
+.meal-action-btn:hover{background:#e8f0d8;color:#1a3a1a}
+.card-sel-badge{position:absolute;top:14px;right:14px;width:22px;height:22px;background:#2a6a3a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:700}
+.card-sel-badge.kids{background:#5a8a2a}
+.card-fav-dot{font-size:14px}
+.kids-badge{display:inline-flex;align-items:center;gap:4px;background:#e4f0d4;border:1px solid #c0d8a0;border-radius:100px;padding:2px 9px;font-size:11px;color:#3a5a1a;font-weight:600;margin-bottom:2px}
+
+/* ── FIXED BASKET BAR ─────────────────────────────────────────────── */
+.basket-bar{position:fixed;bottom:0;left:0;right:0;z-index:90;background:#fff;border-top:1px solid #e0ddd0;box-shadow:0 -4px 24px rgba(26,60,20,.12)}
+.basket-bar-inner{max-width:900px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.basket-bar-left{display:flex;align-items:center;gap:12px}
+.basket-icon-wrap{width:42px;height:42px;background:#f0f5e8;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.basket-count{font-size:14px;font-weight:600;color:#1a3a1a;margin-bottom:1px}
+.basket-sub{font-size:12px;color:#7a8a6a}
+.basket-bar-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.basket-build-btn{background:#1a4a2a;color:#fff;border:none;padding:11px 22px;border-radius:100px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s;white-space:nowrap}
+.basket-build-btn:hover:not(:disabled){background:#0f3018;transform:translateY(-1px);box-shadow:0 4px 14px rgba(26,74,42,.3)}
+.basket-build-btn:disabled{opacity:.4;cursor:not-allowed}
+.basket-sel-all{background:transparent;color:#2a6a3a;border:1.5px solid #a0c090;padding:10px 16px;border-radius:100px;font-size:13px;font-weight:500;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .16s;white-space:nowrap}
+.basket-sel-all:hover{background:#f0f5e8}
 .icon-btn{background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:5px;font-size:12px;transition:background .14s;line-height:1}
 .icon-btn:hover{background:#e8f0d8}
-.cell-check{position:absolute;top:5px;left:5px;width:14px;height:14px;background:#2a6a3a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;color:#fff}
-.cell-fav{position:absolute;top:4px;right:4px;font-size:10px}
 .kids-alt-tag{font-size:10px;color:#2a5a1a;background:#e4f0d4;padding:2px 5px;border-radius:4px;margin-top:3px;display:inline-block;cursor:pointer}
 
 /* ── SHOPPING LIST ── */
@@ -515,6 +571,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 /* shop select panel */
 .shop-panel{background:#fff;border-radius:18px;padding:22px;border:1px solid #e0ddd0}
 .shop-panel-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px;margin-bottom:11px}
+/* padding so content isn't hidden behind fixed basket bar */
+.mealplan-page{padding-bottom:90px}
 .meal-pills{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
 .meal-pill{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;background:#f4f8ec;border:1.5px solid #c8d4b0;border-radius:100px;font-size:12px;color:#2a6a3a;font-weight:500;cursor:pointer;transition:all .16s}
 .meal-pill:hover{border-color:#2a6a3a;background:#e8f0d8}
@@ -1349,108 +1407,144 @@ export default function App() {
 
           {/* MEAL PLAN */}
           {step === "mealplan" && plan && (() => {
-            const gc = `106px repeat(${selDays.length},1fr)`;
-            const mw = Math.max(580, 100 + selDays.length * 105);
+            const totalSelected = picked.size + kPicked.size;
             return (
-              <div>
-                <div className="sec-hdr">
+              <div className="mealplan-page">
+                {/* Page header */}
+                <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, marginBottom:24 }}>
                   <div>
-                    <div className="page-title" style={{ fontSize: 27, marginBottom: 3 }}>Your plan<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>is ready.</span></div>
-                    <p style={{ fontSize: 12, color: "#6a7a5a", lineHeight: 1.7 }}>Tap name or 📖 for recipe · ☆ favourite · ↻ swap · tap cell to add to list</p>
+                    <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:34, fontWeight:600, color:"#1a3a1a", lineHeight:1.1, marginBottom:6 }}>
+                      Your plan<br/><span style={{ color:"#c4622d", fontStyle:"italic" }}>is ready.</span>
+                    </div>
+                    <p style={{ fontSize:13, color:"#7a8a6a", lineHeight:1.6 }}>Tap a card to add to basket · 📖 for recipe · ☆ to favourite · ↻ to swap</p>
                   </div>
-                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <div style={{ display:"flex", gap:7, flexShrink:0 }}>
                     {sl && <button className="btn btn-ghost btn-sm" onClick={() => setStep("list")}>🛒 List</button>}
                     <button className="btn btn-ghost btn-sm" onClick={() => newRoll(awk || cWK())}>↻ Re-plan</button>
                   </div>
                 </div>
 
+                {/* Budget summary */}
                 {prefs.budgetOn && Object.keys(costs).length > 0 && (
                   <div className="budget-sum">
-                    <div><div className="budget-lbl">Estimated weekly cost</div><div style={{ fontSize: 11, color: "#5a7a5a" }}>{selDays.length} days · {tsrv} servings</div></div>
-                    <div><div className={`budget-val${overBudget ? " budget-over" : ""}`}>{sym}{totalCost.toFixed(0)}</div>{budget > 0 && <div style={{ fontSize: 11, color: overBudget ? "#b04020" : "#4a8868", textAlign: "right" }}>{overBudget ? `${sym}${(totalCost - budget).toFixed(0)} over` : `${sym}${(budget - totalCost).toFixed(0)} under`}</div>}</div>
+                    <div><div className="budget-lbl">Estimated weekly cost</div><div style={{ fontSize:11, color:"#5a7a5a" }}>{selDays.length} days · {tsrv} servings</div></div>
+                    <div>
+                      <div className={`budget-val${overBudget?" budget-over":""}`}>{sym}{totalCost.toFixed(0)}</div>
+                      {budget>0&&<div style={{ fontSize:11, color:overBudget?"#b04020":"#4a8868", textAlign:"right" }}>{overBudget?`${sym}${(totalCost-budget).toFixed(0)} over`:`${sym}${(budget-totalCost).toFixed(0)} under`}</div>}
+                    </div>
                   </div>
                 )}
 
-                <div style={{ overflowX: "auto", marginBottom: 16 }}>
-                  <div className="meal-grid" style={{ gridTemplateColumns: gc, minWidth: mw }}>
-                    <div />
-                    {selDays.map(d => <div key={d} className="col-hdr">{DAY3[d]}</div>)}
-                    {prefs.types.map(mt => (
-                      <Fragment key={mt}>
-                        <div className="row-lbl">{ML[mt]}</div>
-                        {selDays.map(day => {
-                          const m = plan?.[day.toLowerCase()]?.[mt];
-                          const k = `${day.toLowerCase()}-${mt}`;
-                          const isSel = picked.has(k), isFav = m && favs.includes(m.name);
-                          return (
-                            <div key={day} className={`meal-cell${isSel ? " picked" : ""}`} onClick={() => m && togglePick(k)}>
-                              {m ? (
-                                <>
-                                  {isSel && <div className="cell-check">✓</div>}
-                                  {isFav && <div className="cell-fav">⭐</div>}
-                                  <div className="meal-name" onClick={e => { e.stopPropagation(); openRecipe(m, mt); }}>{m.name}</div>
-                                  <div className="meal-desc">{m.description}</div>
-                                  <div className="meal-meta">
-                                    <span className="meal-time">⏱ {m.time}</span>
-                                    {prefs.budgetOn && costs[k] != null && <span className="meal-cost">{sym}{costs[k]}</span>}
+                {/* Day-by-day card layout */}
+                {selDays.map(day => {
+                  const dayData = plan?.[day.toLowerCase()];
+                  if(!dayData) return null;
+                  const dayDate = (() => {
+                    if(!awk) return "";
+                    const mon = new Date(awk+"T00:00:00");
+                    const idx = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"].indexOf(day.toLowerCase());
+                    const d = new Date(mon); d.setDate(mon.getDate()+idx);
+                    return d.toLocaleDateString("en-IE",{day:"numeric",month:"long"});
+                  })();
+                  return (
+                    <div key={day} className="day-section">
+                      <div className="day-section-title">
+                        {day}
+                        {dayDate && <span className="day-section-date">{dayDate}</span>}
+                      </div>
+                      {prefs.types.map(mt => {
+                        const m = dayData[mt];
+                        if(!m) return null;
+                        const k = `${day.toLowerCase()}-${mt}`;
+                        const isSel = picked.has(k), isFav = favs.includes(m.name);
+                        const cuisine = detectCuisine(m.name, m.description||"");
+                        const cFlag = cuisine ? (CUISINE_FLAGS[cuisine]||"🍽️") : "🍽️";
+                        // Kids alt
+                        const ka = m.kidsAlt;
+                        const kname = ka && typeof ka==="object" ? ka.name : ka;
+                        const kings = ka && typeof ka==="object" ? ka.ingredients||[] : [];
+                        const kk = `${day.toLowerCase()}-${mt}-k`;
+                        const kSel = kPicked.has(kk);
+                        return (
+                          <Fragment key={mt}>
+                            {/* Meal type label */}
+                            <div className="mt-section">
+                              <div className="mt-label">{ML[mt]}</div>
+                              {/* Adult card */}
+                              <div className={`meal-card${isSel?" picked":""}`} onClick={() => togglePick(k)}>
+                                {isSel && <div className="card-sel-badge">✓</div>}
+                                <div className="meal-card-top">
+                                  <div className="meal-card-flag">{cFlag}</div>
+                                  <div className="meal-card-title-wrap">
+                                    {cuisine && <div className="meal-card-cuisine">{cuisine}</div>}
+                                    <div className="meal-card-name" onClick={e=>{ e.stopPropagation(); openRecipe(m,mt); }}>{m.name}</div>
                                   </div>
-                                  <div className="meal-actions" onClick={e => e.stopPropagation()}>
-                                    <button className="icon-btn" onClick={() => toggleFav(m.name)}>{isFav ? "⭐" : "☆"}</button>
-                                    <button className="icon-btn" onClick={() => openRecipe(m, mt)}>📖</button>
-                                    <button className="icon-btn" onClick={() => openSwap(day, mt)}>↻</button>
-                                  </div>
-                                </>
-                              ) : <div style={{ color: "#ddd", fontSize: 10, textAlign: "center", margin: "auto" }}>—</div>}
-                            </div>
-                          );
-                        })}
-                        {/* Kids row */}
-                        {prefs.kids > 0 && prefs.kidsDiff && (
-                          <>
-                            <div className="row-lbl kids-lbl">👧 Kids</div>
-                            {selDays.map(day => {
-                              const ka = plan?.[day.toLowerCase()]?.[mt]?.kidsAlt;
-                              const kname = typeof ka === "object" ? ka?.name : ka;
-                              const kings = typeof ka === "object" ? ka?.ingredients || [] : [];
-                              const kk = `${day.toLowerCase()}-${mt}-k`;
-                              const kSel = kPicked.has(kk);
-                              return (
-                                <div key={day} className={`meal-cell${kSel ? " kids-picked" : ""}`} style={{ border: `1.5px solid ${kSel ? "#5a8a2a" : "#d8e8c0"}`, background: kSel ? "#f0f7e4" : "#fafff6" }} onClick={() => kname && toggleKPick(kk)}>
-                                  {kname ? (
-                                    <>
-                                      {kSel && <div className="cell-check" style={{ background: "#5a8a2a" }}>✓</div>}
-                                      <div className="meal-name" style={{ color: "#2a5a1a" }} onClick={e => { e.stopPropagation(); openRecipe({ name: kname, ingredients: kings, time: "~20 min" }, mt, "kids"); }}>{kname}</div>
-                                      <div className="meal-desc" style={{ color: "#5a7a5a" }}>Kid-friendly · {prefs.kids} portion{prefs.kids > 1 ? "s" : ""}</div>
-                                      <div className="meal-actions" onClick={e => e.stopPropagation()}>
-                                        <button className="icon-btn" onClick={() => openRecipe({ name: kname, ingredients: kings, time: "~20 min" }, mt, "kids")}>📖</button>
-                                      </div>
-                                    </>
-                                  ) : <div style={{ color: "#cdc", fontSize: 10, textAlign: "center", margin: "auto" }}>—</div>}
+                                  {isFav && <div className="card-fav-dot">⭐</div>}
                                 </div>
-                              );
-                            })}
-                          </>
-                        )}
-                      </Fragment>
-                    ))}
-                  </div>
-                </div>
+                                {m.description && <div className="meal-card-desc">{m.description}</div>}
+                                <div className="meal-card-footer">
+                                  <div className="meal-card-pills">
+                                    {m.time && <span className="meal-pill-item">⏱ {m.time}</span>}
+                                    {tsrv>1 && <span className="meal-pill-item">👥 {tsrv} servings</span>}
+                                    {prefs.budgetOn && costs[k]!=null && <span className="meal-pill-item green">💰 {sym}{costs[k]}</span>}
+                                    {isSel && <span className="meal-pill-item green">✓ In basket</span>}
+                                  </div>
+                                  <div className="meal-card-actions" onClick={e=>e.stopPropagation()}>
+                                    <button className="meal-action-btn" title={isFav?"Remove favourite":"Add favourite"} onClick={()=>toggleFav(m.name)}>{isFav?"⭐":"☆"}</button>
+                                    <button className="meal-action-btn" title="View recipe" onClick={()=>openRecipe(m,mt)}>📖</button>
+                                    <button className="meal-action-btn" title="Swap meal" onClick={()=>openSwap(day,mt)}>↻</button>
+                                  </div>
+                                </div>
+                              </div>
 
-                <div className="shop-panel">
-                  <div className="shop-panel-hdr">
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: "#1a3a1a", marginBottom: 2 }}>🛒 Build shopping list</div>
-                      <div style={{ fontSize: 12, color: "#6a7a5a" }}>{picked.size} adult{picked.size !== 1 ? "s" : ""} + {kPicked.size} kids selected</div>
+                              {/* Kids card */}
+                              {prefs.kids>0 && prefs.kidsDiff && kname && (
+                                <div className={`meal-card kids-card${kSel?" picked":""}`} style={{ marginTop:8 }} onClick={()=>toggleKPick(kk)}>
+                                  {kSel && <div className="card-sel-badge kids">✓</div>}
+                                  <div className="meal-card-top">
+                                    <div className="meal-card-flag">👧</div>
+                                    <div className="meal-card-title-wrap">
+                                      <div className="kids-badge">Kids · {prefs.kids} portion{prefs.kids>1?"s":""}</div>
+                                      <div className="meal-card-name" style={{ color:"#2a5a1a" }} onClick={e=>{ e.stopPropagation(); openRecipe({name:kname,ingredients:kings,time:"~20 min"},mt,"kids"); }}>{kname}</div>
+                                    </div>
+                                  </div>
+                                  <div className="meal-card-footer">
+                                    <div className="meal-card-pills">
+                                      <span className="meal-pill-item">🥗 Child-friendly</span>
+                                      {kSel && <span className="meal-pill-item green">✓ In basket</span>}
+                                    </div>
+                                    <div className="meal-card-actions" onClick={e=>e.stopPropagation()}>
+                                      <button className="meal-action-btn" onClick={()=>openRecipe({name:kname,ingredients:kings,time:"~20 min"},mt,"kids")}>📖</button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </Fragment>
+                        );
+                      })}
                     </div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={selectAll}>Select all</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => { setPicked(new Set()); setKPicked(new Set()); }}>Clear</button>
+                  );
+                })}
+
+                {/* FIXED BASKET BAR */}
+                <div className="basket-bar">
+                  <div className="basket-bar-inner">
+                    <div className="basket-bar-left">
+                      <div className="basket-icon-wrap">🛒</div>
+                      <div>
+                        <div className="basket-count">{totalSelected} meal{totalSelected!==1?"s":""} selected</div>
+                        <div className="basket-sub">{picked.size} adult{picked.size!==1?"s":""}{kPicked.size>0?` · ${kPicked.size} kids`:""}</div>
+                      </div>
                     </div>
-                  </div>
-                  {err && <div className="err-box" style={{ marginBottom: 9 }}>⚠️ {err}</div>}
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button className="btn btn-primary" onClick={buildList} disabled={(!picked.size && !kPicked.size) || loading}>{loading ? "⏳ Building…" : `Build list (${picked.size + kPicked.size} meal${picked.size + kPicked.size !== 1 ? "s" : ""})`}</button>
-                    {sl && <button className="btn btn-ghost" onClick={() => setStep("list")}>🛒 Open existing list</button>}
+                    <div className="basket-bar-right">
+                      {err && <div style={{ fontSize:12, color:"#b04020" }}>⚠️ {err}</div>}
+                      <button className="basket-sel-all" onClick={selectAll}>Select all</button>
+                      {sl && <button className="btn btn-ghost btn-sm" onClick={()=>setStep("list")}>View list</button>}
+                      <button className="basket-build-btn" onClick={buildList} disabled={totalSelected===0||loading}>
+                        {loading?"⏳ Building…":"Build shopping list"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
