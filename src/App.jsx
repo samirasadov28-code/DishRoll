@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.2.3";
+const APP_VERSION = "0.2.4";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -163,27 +163,29 @@ const PHOTO_MAP = {
 };
 function photoFallback(name = "", mt = "") {
   const n = name.toLowerCase();
-  if (n.includes("chicken")||n.includes("turkey")||n.includes("duck")) return PHOTO_MAP.chicken;
+  // Proteins first — these are always the right visual anchor
+  if (n.includes("chicken")||n.includes("turkey")||n.includes("duck")||n.includes("parmesan")||n.includes("parmigiana")) return PHOTO_MAP.chicken;
   if (n.includes("beef")||n.includes("steak")||n.includes("meatball")) return PHOTO_MAP.beef;
   if (n.includes("burger")) return PHOTO_MAP.burger;
   if (n.includes("lamb")||n.includes("mutton")) return PHOTO_MAP.lamb;
   if (n.includes("pork")||n.includes("bacon")||n.includes("ham")||n.includes("sausage")) return PHOTO_MAP.pork;
   if (n.includes("salmon")||n.includes("tuna")||n.includes("cod")||n.includes("fish")) return PHOTO_MAP.fish;
-  if (n.includes("shrimp")||n.includes("prawn")||n.includes("lobster")||n.includes("seafood")) return PHOTO_MAP.seafood;
-  if (n.includes("pasta")||n.includes("spaghetti")||n.includes("penne")||n.includes("carbonara")||n.includes("lasagne")) return PHOTO_MAP.pasta;
+  if (n.includes("shrimp")||n.includes("prawn")||n.includes("scampi")||n.includes("lobster")||n.includes("crab")||n.includes("seafood")) return PHOTO_MAP.seafood;
+  if (n.includes("pasta")||n.includes("spaghetti")||n.includes("penne")||n.includes("carbonara")||n.includes("lasagne")||n.includes("fettuccine")||n.includes("linguine")) return PHOTO_MAP.pasta;
   if (n.includes("pizza")) return PHOTO_MAP.pizza;
+  // Curry/stew — check BEFORE vegetable so "Vegetable Curry" hits curry not vegetarian
+  if (n.includes("curry")||n.includes("masala")||n.includes("tikka")||n.includes("korma")||n.includes("dal")||n.includes("dhal")) return PHOTO_MAP.curry;
   if (n.includes("soup")||n.includes("broth")||n.includes("bisque")||n.includes("chowder")) return PHOTO_MAP.soup;
-  if (n.includes("stew")||n.includes("casserole")||n.includes("tagine")||n.includes("borscht")) return PHOTO_MAP.soup;
+  if (n.includes("stew")||n.includes("casserole")||n.includes("tagine")||n.includes("borscht")||n.includes("hotpot")) return PHOTO_MAP.soup;
   if (n.includes("salad")) return PHOTO_MAP.salad;
-  if (n.includes("curry")||n.includes("masala")||n.includes("tikka")||n.includes("korma")||n.includes("dal")) return PHOTO_MAP.curry;
   if (n.includes("rice")||n.includes("risotto")||n.includes("pilaf")||n.includes("biryani")||n.includes("paella")) return PHOTO_MAP.rice;
   if (n.includes("taco")||n.includes("burrito")||n.includes("enchilada")||n.includes("quesadilla")) return PHOTO_MAP.taco;
-  if (n.includes("noodle")||n.includes("ramen")||n.includes("pho")||n.includes("udon")) return PHOTO_MAP.noodle;
-  if (n.includes("bread")||n.includes("sandwich")||n.includes("toast")||n.includes("wrap")) return PHOTO_MAP.bread;
-  if (n.includes("egg")||n.includes("omelette")||n.includes("frittata")) return PHOTO_MAP.egg;
-  if (n.includes("pancake")||n.includes("waffle")) return PHOTO_MAP.breakfast;
-  if (n.includes("cake")||n.includes("dessert")||n.includes("pudding")||n.includes("tart")) return PHOTO_MAP.dessert;
-  if (n.includes("vegetable")||n.includes("tofu")||n.includes("lentil")||n.includes("chickpea")) return PHOTO_MAP.vegetarian;
+  if (n.includes("noodle")||n.includes("ramen")||n.includes("pho")||n.includes("udon")||n.includes("soba")) return PHOTO_MAP.noodle;
+  if (n.includes("bread")||n.includes("sandwich")||n.includes("toast")||n.includes("wrap")||n.includes("flatbread")) return PHOTO_MAP.bread;
+  if (n.includes("egg")||n.includes("omelette")||n.includes("frittata")||n.includes("quiche")) return PHOTO_MAP.egg;
+  if (n.includes("pancake")||n.includes("waffle")||n.includes("crepe")) return PHOTO_MAP.breakfast;
+  if (n.includes("cake")||n.includes("dessert")||n.includes("pudding")||n.includes("tart")||n.includes("brownie")) return PHOTO_MAP.dessert;
+  if (n.includes("vegetable")||n.includes("veggie")||n.includes("tofu")||n.includes("lentil")||n.includes("chickpea")||n.includes("aubergine")||n.includes("courgette")) return PHOTO_MAP.vegetarian;
   if (mt === "breakfast") return PHOTO_MAP.breakfast;
   return PHOTO_MAP.default;
 }
@@ -200,27 +202,41 @@ async function fetchPhoto(name, mt, ingredients) {
     } catch {}
     return null;
   };
-  // Tier 1: full dish name
-  let p = await tryProxy(name.split(" ").slice(0, 3).join(" "));
-  if (p) return p;
-  // Tier 2: each meaningful word in dish name
-  const stopWords = /^(with|and|in|on|of|the|for|à|al|au|en|à|la)$/i;
+
+  // Pre-check: does our local keyword map give a SPECIFIC result (not the generic default)?
+  // If yes, this is our confident fallback — better than a random wrong API result.
+  const localMatch = photoFallback(name, mt);
+  const hasSpecificLocal = localMatch !== PHOTO_MAP.default;
+
+  // Tier 1: TheMealDB full dish name match
+  const p1 = await tryProxy(name.split(" ").slice(0, 3).join(" "));
+  if (p1) return p1;
+
+  // Tier 2: if we have a confident local category match, use it now
+  // This ensures "Vegetable Curry" → curry photo, "Chicken Parmesan" → chicken photo,
+  // "Shrimp Scampi" → prawn photo — before trying random word-by-word API calls
+  if (hasSpecificLocal) return localMatch;
+
+  // Tier 3: word-by-word API search (only reached for truly unrecognised dishes)
+  const stopWords = /^(with|and|in|on|of|the|for|à|al|au|en|la)$/i;
   const words = name.split(" ").filter(w => w.length > 3 && !stopWords.test(w));
   for (const w of words) {
-    p = await tryProxy(w);
+    const p = await tryProxy(w);
     if (p) return p;
   }
-  // Tier 3: first ingredient word (e.g. "400g chicken thighs" → "chicken")
+
+  // Tier 4: first ingredient word (e.g. "400g chicken thighs" → "chicken")
   if (ingredients && ingredients.length > 0) {
-    const raw = ingredients[0].replace(/^[\d\s.,g]+/i, "").trim();
+    const raw = ingredients[0].replace(/^[\d\s.,]+/i, "").trim();
     const ingWord = raw.split(" ").find(w => w.length > 3) || "";
     if (ingWord) {
-      p = await tryProxy(ingWord);
+      const p = await tryProxy(ingWord);
       if (p) return p;
     }
   }
-  // Tier 4: guaranteed curated fallback
-  return photoFallback(name, mt);
+
+  // Tier 5: guaranteed curated fallback (generic food photo)
+  return localMatch;
 }
 
 // ─── COLOUR HELPER ────────────────────────────────────────────────────────────
