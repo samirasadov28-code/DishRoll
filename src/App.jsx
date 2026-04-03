@@ -290,14 +290,14 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .cxc.s{border-color:#2a6a3a;background:#f4f8ec}
 .cxl{font-size:13px;font-weight:600;color:#1a3a1a;margin-bottom:3px}
 .cxd{font-size:11px;color:#6a7a5a;line-height:1.4}
-.pg2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.pc{padding:20px;border-radius:16px;border:1.5px solid #e0ddd0;background:#fff;text-align:center}
-.pl{font-size:12px;font-weight:600;color:#6a7a5a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
-.cr{display:flex;align-items:center;gap:10px;justify-content:center}
-.cb{width:36px;height:36px;border-radius:50%;border:2px solid #2a6a3a;background:#fff;font-size:18px;cursor:pointer;color:#2a6a3a;display:flex;align-items:center;justify-content:center;transition:all .14s}
+.pg2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pc{padding:16px 12px;border-radius:16px;border:1.5px solid #e0ddd0;background:#fff;text-align:center;overflow:hidden}
+.pl{font-size:11px;font-weight:600;color:#6a7a5a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.cr{display:flex;align-items:center;gap:6px;justify-content:center}
+.cb{width:32px;height:32px;border-radius:50%;border:2px solid #2a6a3a;background:#fff;font-size:16px;cursor:pointer;color:#2a6a3a;display:flex;align-items:center;justify-content:center;transition:all .14s;flex-shrink:0}
 .cb:hover:not(:disabled){background:#2a6a3a;color:#fff}
 .cb:disabled{opacity:.3;cursor:not-allowed}
-.cn{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:600;color:#1a3a1a;min-width:38px;text-align:center}
+.cn{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:#1a3a1a;min-width:32px;text-align:center}
 .kt{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:#f8f5ee;border-radius:12px;border:1.5px solid #e0ddd0;cursor:pointer;margin-top:12px;user-select:none;transition:all .18s}
 .kt.on{background:#f0f5e8;border-color:#2a6a3a}
 .kb{width:20px;height:20px;border-radius:6px;border:2px solid #b0c8a0;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .16s;margin-top:1px}
@@ -677,13 +677,13 @@ export default function App() {
         4000
       );
       const p2=JSON.parse(raw);
-      // Validate — at least half the selected days must have at least one meal
-      const filledDays = sdays.filter(d => {
+      // Validate — needs at least one day with at least one meal name
+      const anyMeal = sdays.some(d => {
         const day = p2[d.toLowerCase()];
         return day && prefs.mealTypes.some(t => day[t]?.name);
       });
-      if(filledDays.length < Math.ceil(sdays.length / 2)) {
-        throw new Error('Meal plan came back mostly empty — please try rolling again.');
+      if(!anyMeal) {
+        throw new Error('No meals were returned — please try rolling again.');
       }
       const c2={};
       sdays.forEach(d=>prefs.mealTypes.forEach(t=>{const m=p2[d.toLowerCase()]?.[t];if(m&&m.estCost) c2[d.toLowerCase()+'-'+t]=m.estCost;}));
@@ -786,7 +786,8 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
       <div>
         {/* Hero */}
         <div className="land-hero">
-          <div style={{marginBottom:20,display:'flex',alignItems:'center',justifyContent:'center',gap:0}}>
+          <img src="/logo.png" alt="DishRoll" style={{width:72,height:'auto',margin:'0 auto 16px',display:'block'}}/>
+          <div style={{marginBottom:14,display:'flex',alignItems:'center',justifyContent:'center',gap:0}}>
             <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:56,fontWeight:700,color:'#1a3a1a',letterSpacing:'-1px',lineHeight:1}}>Dish</span>
             <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:56,fontWeight:700,color:'#c4622d',letterSpacing:'-1px',lineHeight:1}}>Roll</span>
           </div>
