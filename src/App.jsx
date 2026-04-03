@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.0.9";
+const APP_VERSION = "0.1.0";
 
 // Safe analytics wrapper — calls window.track if GA is loaded
 const track = (name, params) => {
@@ -13,7 +13,7 @@ const CUISINE_OPTIONS = ['Italian','Asian','Mexican','Mediterranean','Indian','F
 const DIETARY_OPTIONS = ['Vegetarian','Vegan','Gluten-Free','Dairy-Free','Keto','Paleo','Nut-Free','Low-Carb','High-Protein','Pescatarian'];
 const CURRENCY_SYMBOLS = { EUR:'€', GBP:'£', USD:'$', CAD:'CA$', AUD:'A$' };
 const ML = { breakfast:'🌅 Breakfast', lunch:'🕐 Lunch', dinner:'🌙 Dinner' };
-const ROLL_MSGS = ['Rolling your week…','The dice are in the air…','Spinning up your menu…','Shuffling the deck…','Fate is choosing your meals…'];
+const ROLL_MSGS = ['Planning your week…','Choosing your meals…','Crafting your menu…','Selecting fresh ideas…','Putting it all together…'];
 const CAT_ICONS = { Produce:'🥬', Proteins:'🥩', Dairy:'🧀', Pantry:'🫙', Grains:'🌾', Spices:'🌿', Frozen:'🧊', Bakery:'🍞', Beverages:'🥛', Seafood:'🐟', Condiments:'🥫', Canned:'🥫', Meat:'🥩', Vegetables:'🥦', Fruit:'🍎', Other:'🛒', 'My additions':'✏️' };
 const COMPLEXITY_OPTS = [
   { id:'simple', label:'🥗 Simple', desc:'Quick & easy, under 30 min' },
@@ -100,20 +100,105 @@ async function callAI(prompt, maxTokens) {
   const r=await fetch('/.netlify/functions/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,maxTokens})});
   if(!r.ok) throw new Error('API error '+r.status);
   const d=await r.json(); if(d.error) throw new Error(d.error);
-  const c=(d.text||'').replace(/```json|```/g,'').trim();
+  let c=(d.text||'').replace(/```json|```/g,'').trim();
+  // Attempt to repair truncated JSON by closing unclosed structures
+  c = repairJSON(c);
   const m=c.match(/(\{[\s\S]*\}|\[[\s\S]*\])/); return m?m[1]:c;
 }
-async function fetchPhoto(name) {
+
+// Repair JSON that was cut off mid-stream due to token limits
+function repairJSON(str) {
+  try { JSON.parse(str); return str; } catch {} // already valid
+  // Count unclosed braces/brackets and close them
+  let opens = 0, inStr = false, escaped = false;
+  const opens2 = [];
+  for(let i=0;i<str.length;i++){
+    const ch=str[i];
+    if(escaped){ escaped=false; continue; }
+    if(ch==='\\'&&inStr){ escaped=true; continue; }
+    if(ch==='"'){ inStr=!inStr; continue; }
+    if(inStr) continue;
+    if(ch==='{') opens2.push('}');
+    else if(ch==='[') opens2.push(']');
+    else if(ch==='}'||ch===']') opens2.pop();
+  }
+  // Close any open string first, then close structures in reverse
+  let repaired = str.trimEnd();
+  if(inStr) repaired += '"';
+  // Remove trailing comma before closing
+  repaired = repaired.replace(/,\s*$/, '');
+  repaired += opens2.reverse().join('');
+  try { JSON.parse(repaired); return repaired; } catch { return str; }
+}
+// Curated Unsplash food photos by category — permanent CDN URLs, always load
+const FOOD_PHOTOS = {
+  chicken:    'https://images.unsplash.com/photo-1598103442097-8b74394b95c1?w=640&q=80',
+  beef:       'https://images.unsplash.com/photo-1558030006-450675393462?w=640&q=80',
+  lamb:       'https://images.unsplash.com/photo-1574484284002-952d92456975?w=640&q=80',
+  pork:       'https://images.unsplash.com/photo-1432139555190-58524dae6a55?w=640&q=80',
+  fish:       'https://images.unsplash.com/photo-1519708227418-a2234ef1df7a?w=640&q=80',
+  seafood:    'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=640&q=80',
+  pasta:      'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=640&q=80',
+  pizza:      'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=640&q=80',
+  soup:       'https://images.unsplash.com/photo-1547592180-85f173990554?w=640&q=80',
+  salad:      'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=640&q=80',
+  curry:      'https://images.unsplash.com/photo-1455619452474-d2be8b1af5a7?w=640&q=80',
+  rice:       'https://images.unsplash.com/photo-1516684732162-798a0062be99?w=640&q=80',
+  taco:       'https://images.unsplash.com/photo-1552332386-f8dd00dc2f85?w=640&q=80',
+  burger:     'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=640&q=80',
+  noodle:     'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=640&q=80',
+  bread:      'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=640&q=80',
+  egg:        'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?w=640&q=80',
+  breakfast:  'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=640&q=80',
+  dessert:    'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=640&q=80',
+  vegetarian: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=640&q=80',
+  stew:       'https://images.unsplash.com/photo-1547592180-85f173990554?w=640&q=80',
+  default:    'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=640&q=80',
+};
+
+function getUnsplashFallback(name='', mt='') {
+  const n = name.toLowerCase();
+  if(n.includes('chicken')||n.includes('turkey')||n.includes('duck')||n.includes('poultry')) return FOOD_PHOTOS.chicken;
+  if(n.includes('beef')||n.includes('steak')||n.includes('meatball')||n.includes('burger')) return FOOD_PHOTOS.beef;
+  if(n.includes('burger')) return FOOD_PHOTOS.burger;
+  if(n.includes('lamb')||n.includes('mutton')) return FOOD_PHOTOS.lamb;
+  if(n.includes('pork')||n.includes('bacon')||n.includes('ham')||n.includes('sausage')) return FOOD_PHOTOS.pork;
+  if(n.includes('salmon')||n.includes('tuna')||n.includes('cod')||n.includes('fish')||n.includes('halibut')) return FOOD_PHOTOS.fish;
+  if(n.includes('shrimp')||n.includes('prawn')||n.includes('lobster')||n.includes('crab')||n.includes('seafood')) return FOOD_PHOTOS.seafood;
+  if(n.includes('pasta')||n.includes('spaghetti')||n.includes('penne')||n.includes('linguine')||n.includes('carbonara')||n.includes('fettuccine')||n.includes('bolognese')||n.includes('lasagne')) return FOOD_PHOTOS.pasta;
+  if(n.includes('pizza')) return FOOD_PHOTOS.pizza;
+  if(n.includes('soup')||n.includes('broth')||n.includes('bisque')||n.includes('chowder')) return FOOD_PHOTOS.soup;
+  if(n.includes('stew')||n.includes('casserole')||n.includes('tagine')||n.includes('borscht')) return FOOD_PHOTOS.stew;
+  if(n.includes('salad')) return FOOD_PHOTOS.salad;
+  if(n.includes('curry')||n.includes('masala')||n.includes('tikka')||n.includes('korma')||n.includes('dal')) return FOOD_PHOTOS.curry;
+  if(n.includes('rice')||n.includes('risotto')||n.includes('pilaf')||n.includes('biryani')||n.includes('paella')) return FOOD_PHOTOS.rice;
+  if(n.includes('taco')||n.includes('burrito')||n.includes('enchilada')||n.includes('quesadilla')||n.includes('fajita')) return FOOD_PHOTOS.taco;
+  if(n.includes('noodle')||n.includes('ramen')||n.includes('pho')||n.includes('udon')||n.includes('soba')) return FOOD_PHOTOS.noodle;
+  if(n.includes('bread')||n.includes('toast')||n.includes('sandwich')||n.includes('wrap')) return FOOD_PHOTOS.bread;
+  if(n.includes('egg')||n.includes('omelette')||n.includes('frittata')||n.includes('quiche')) return FOOD_PHOTOS.egg;
+  if(n.includes('pancake')||n.includes('waffle')||n.includes('crepe')) return FOOD_PHOTOS.breakfast;
+  if(n.includes('cake')||n.includes('dessert')||n.includes('pudding')||n.includes('tart')||n.includes('brownie')) return FOOD_PHOTOS.dessert;
+  if(n.includes('vegetable')||n.includes('tofu')||n.includes('vegan')||n.includes('lentil')||n.includes('chickpea')) return FOOD_PHOTOS.vegetarian;
+  if(mt==='breakfast') return FOOD_PHOTOS.breakfast;
+  return FOOD_PHOTOS.default;
+}
+
+async function fetchPhoto(name, mt) {
+  // Try TheMealDB proxy first (real dish photos when it matches)
   try {
     const q=encodeURIComponent(name.split(' ').slice(0,3).join(' '));
     const r=await fetch('/.netlify/functions/photo?q='+q);
-    if(!r.ok) return null;
-    return (await r.json()).photo||null;
-  } catch { return null; }
+    if(r.ok){
+      const d=await r.json();
+      if(d.photo) return d.photo;
+    }
+  } catch {}
+  // Guaranteed fallback — curated Unsplash by category
+  return getUnsplashFallback(name, mt);
 }
 function grad(name) {
   name=name||''; let h=0; for(let i=0;i<name.length;i++) h=name.charCodeAt(i)+((h<<5)-h);
-  const g=['linear-gradient(135deg,#0d7272,#1a9a9a)','linear-gradient(135deg,#c87800,#f09200)','linear-gradient(135deg,#2a7a4a,#3aaa6a)','linear-gradient(135deg,#6a3a8a,#9a5aba)','linear-gradient(135deg,#8a3030,#c04040)','linear-gradient(135deg,#1a5a8a,#2a7aba)'];
+  const g=['linear-gradient(135deg,#2a6a3a,#1a9a9a)','linear-gradient(135deg,#a04820,#c4622d)','linear-gradient(135deg,#2a7a4a,#3aaa6a)','linear-gradient(135deg,#6a3a8a,#9a5aba)','linear-gradient(135deg,#8a3030,#c04040)','linear-gradient(135deg,#1a5a8a,#2a7aba)'];
   return g[Math.abs(h)%g.length];
 }
 
@@ -150,246 +235,263 @@ const FONTS=`@import url('https://fonts.googleapis.com/css2?family=Cormorant+Gar
 
 const CSS=`
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Plus Jakarta Sans',sans-serif;background:#f4fafa;color:#1a2f2f}
-.app{min-height:100vh}
-.hdr{background:#0a4848;padding:11px 22px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a}
+.app{min-height:100vh;background:#faf7f0}
+.hdr{background:#1a4a2a;padding:13px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .hdr-logo{height:40px;cursor:pointer;display:block}
-.hdr-r{display:flex;align-items:center;gap:7px}
-.ver{font-size:11px;color:#6abcbc;font-weight:600;background:rgba(255,255,255,.1);padding:3px 9px;border-radius:100px}
-.pb{height:3px;background:#c8e4e4}
-.pf{height:100%;background:linear-gradient(90deg,#0d7272,#f09200);transition:width .4s ease}
-.main{max-width:900px;margin:0 auto;padding:28px 18px 80px}
-.title{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:600;color:#0a4848;line-height:1.15;margin-bottom:7px}
-.sub{font-size:14px;color:#4a7070;font-weight:300;margin-bottom:26px;line-height:1.6}
-.card{background:#fff;border-radius:16px;padding:22px;margin-bottom:12px;box-shadow:0 2px 10px rgba(13,114,114,.06);border:1px solid #c8e4e4}
+.hdr-r{display:flex;align-items:center;gap:8px}
+.ver{font-size:11px;color:#8abca0;font-weight:600;background:rgba(255,255,255,.1);padding:3px 9px;border-radius:100px}
+.pb{height:3px;background:#c8d8b8}
+.pf{height:100%;background:linear-gradient(90deg,#2a6a3a,#c4622d);transition:width .4s ease}
+.main{max-width:900px;margin:0 auto;padding:36px 22px 100px}
+.title{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:600;color:#1a3a1a;line-height:1.15;margin-bottom:8px}
+.sub{font-size:14px;color:#5a6a4a;font-weight:300;margin-bottom:28px;line-height:1.7}
+.card{background:#fff;border-radius:18px;padding:24px;margin-bottom:14px;box-shadow:0 2px 12px rgba(30,60,20,.06);border:1px solid #e0ddd0}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{padding:7px 15px;border-radius:100px;border:1.5px solid #b8d8d8;background:#fff;font-size:13px;font-weight:500;cursor:pointer;transition:all .17s;color:#1a3a3a;font-family:'Plus Jakarta Sans',sans-serif;user-select:none}
-.chip:hover{border-color:#0d7272;color:#0d7272}
-.chip.s{background:#0d7272;border-color:#0d7272;color:#fff}
-.chip.a{background:#f09200;border-color:#f09200;color:#fff}
+.chip{padding:8px 16px;border-radius:100px;border:1.5px solid #c8d4b0;background:#fff;font-size:13px;font-weight:500;cursor:pointer;transition:all .17s;color:#2a3a1a;font-family:'Plus Jakarta Sans',sans-serif;user-select:none}
+.chip:hover{border-color:#2a6a3a;color:#2a6a3a}
+.chip.s{background:#2a6a3a;border-color:#2a6a3a;color:#fff}
+.chip.a{background:#c4622d;border-color:#c4622d;color:#fff}
 .btn{display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border-radius:100px;border:none;cursor:pointer;font-size:14px;font-weight:500;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s}
-.bp{background:#0d7272;color:#fff}
-.bp:hover:not(:disabled){background:#0a5858;transform:translateY(-1px);box-shadow:0 4px 14px rgba(13,114,114,.25)}
-.bg{background:transparent;color:#0d7272;border:1.5px solid #9acaca}
-.bg:hover:not(:disabled){border-color:#0d7272;background:#f0fafa}
-.bd{background:transparent;color:#c04040;border:1.5px solid #e8a0a0}
-.bd:hover:not(:disabled){background:#fef0f0;border-color:#c04040}
-.bsm{padding:6px 13px;font-size:12px}
+.bp{background:#1a4a2a;color:#fff}
+.bp:hover:not(:disabled){background:#0f3020;transform:translateY(-1px);box-shadow:0 4px 14px rgba(26,74,42,.3)}
+.bg{background:transparent;color:#2a6a3a;border:1.5px solid #a0c090}
+.bg:hover:not(:disabled){border-color:#2a6a3a;background:#f0f5e8}
+.bd{background:transparent;color:#b04020;border:1.5px solid #e0a898}
+.bd:hover:not(:disabled){background:#fef3f0;border-color:#b04020}
+.bsm{padding:6px 14px;font-size:12px}
 .btn:disabled{opacity:.4;cursor:not-allowed}
-.broll{background:linear-gradient(135deg,#f09200,#c87800);color:#fff;font-size:15px;padding:13px 28px}
-.broll:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 18px rgba(240,146,0,.38)}
-.inp{width:100%;padding:10px 13px;border-radius:10px;border:1.5px solid #b8d8d8;background:#f8fefe;font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;color:#1a2f2f;outline:none;transition:border-color .2s}
-.inp:focus{border-color:#0d7272}
-.sl{width:100%;accent-color:#f09200;cursor:pointer}
-.tag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#e0f4f4;border-radius:100px;font-size:12px;color:#0a4848;font-weight:500}
-.tag button{background:none;border:none;cursor:pointer;color:#3a9898;font-size:14px;line-height:1;padding:0 1px}
-.lbl{font-size:11px;font-weight:600;color:#4a7070;text-transform:uppercase;letter-spacing:.8px;margin-bottom:9px}
-.nr{display:flex;gap:9px;margin-top:22px;align-items:center;flex-wrap:wrap}
-.err{background:#fff8e0;border:1px solid #f0cc70;color:#7a5200;padding:10px 13px;border-radius:10px;font-size:13px;margin-top:10px}
-.fn{background:#f0fafa;border-left:3px solid #3a9898;padding:9px 13px;border-radius:0 10px 10px 0;font-size:12px;color:#0a4848;margin-bottom:11px}
-.hint{font-size:12px;color:#4a7070;margin-bottom:9px;line-height:1.5}
-.rb{display:inline-flex;align-items:center;gap:6px;background:#fff8e8;border:1px solid #f0cc80;border-radius:100px;padding:4px 11px;font-size:12px;font-weight:600;color:#a06000}
-.vl{display:flex;justify-content:space-between;font-size:11px;color:#7a9898;margin-top:4px}
-
+.broll{background:linear-gradient(135deg,#c4622d,#a04820);color:#fff;font-size:15px;padding:13px 30px;border-radius:100px;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;transition:all .2s}
+.broll:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 20px rgba(196,98,45,.38)}
+.inp{width:100%;padding:11px 14px;border-radius:12px;border:1.5px solid #d0ccb8;background:#fff;font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;color:#2a2a1a;outline:none;transition:border-color .2s}
+.inp:focus{border-color:#2a6a3a}
+.sl{width:100%;accent-color:#c4622d;cursor:pointer}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#e8f0d8;border-radius:100px;font-size:12px;color:#1a3a1a;font-weight:500}
+.tag button{background:none;border:none;cursor:pointer;color:#5a8a5a;font-size:14px;line-height:1;padding:0 1px}
+.tag button:hover{color:#c4622d}
+.lbl{font-size:11px;font-weight:600;color:#6a7a5a;text-transform:uppercase;letter-spacing:.8px;margin-bottom:9px}
+.nr{display:flex;gap:9px;margin-top:24px;align-items:center;flex-wrap:wrap}
+.err{background:#fdf5e8;border:1px solid #e8cc88;color:#7a5a10;padding:10px 14px;border-radius:10px;font-size:13px;margin-top:10px}
+.fn{background:#f0f5e8;border-left:3px solid #5a9a5a;padding:9px 13px;border-radius:0 10px 10px 0;font-size:12px;color:#1a3a1a;margin-bottom:11px}
+.hint{font-size:12px;color:#5a6a4a;margin-bottom:9px;line-height:1.5}
+.rb{display:inline-flex;align-items:center;gap:6px;background:#faf0e8;border:1px solid #e8c8a8;border-radius:100px;padding:4px 12px;font-size:12px;font-weight:600;color:#8a4010}
+.vl{display:flex;justify-content:space-between;font-size:11px;color:#8a9a7a;margin-top:4px}
 .dg{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
-.dc{padding:10px 3px;border-radius:11px;border:2px solid #b8d8d8;background:#fff;cursor:pointer;text-align:center;transition:all .18s;user-select:none}
-.dc:hover{border-color:#0d7272}
-.dc.s{background:#0d7272;border-color:#0d7272}
-.dl{font-size:10px;color:#7a9898;margin-bottom:2px}
+.dc{padding:10px 3px;border-radius:12px;border:2px solid #d0ccb8;background:#fff;cursor:pointer;text-align:center;transition:all .18s;user-select:none}
+.dc:hover{border-color:#2a6a3a}
+.dc.s{background:#2a6a3a;border-color:#2a6a3a}
+.dl{font-size:10px;color:#8a9a7a;margin-bottom:2px}
 .dc.s .dl{color:rgba(255,255,255,.6)}
-.dn{font-size:13px;font-weight:600;color:#0a4848}
+.dn{font-size:13px;font-weight:600;color:#1a3a1a}
 .dc.s .dn{color:#fff}
-
-.cxg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.cxc{padding:12px;border-radius:12px;border:2px solid #b8d8d8;background:#fff;cursor:pointer;text-align:center;transition:all .2s;user-select:none}
-.cxc:hover{border-color:#0d7272}
-.cxc.s{border-color:#0d7272;background:#f0fafa}
-.cxl{font-size:13px;font-weight:600;color:#0a4848;margin-bottom:3px}
-.cxd{font-size:11px;color:#4a7070;line-height:1.4}
-
-.pg2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.pc{padding:16px;border-radius:14px;border:1.5px solid #c8e4e4;background:#fff;text-align:center}
-.pl{font-size:12px;font-weight:600;color:#4a7070;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.cxg{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.cxc{padding:14px 12px;border-radius:14px;border:2px solid #d0ccb8;background:#fff;cursor:pointer;text-align:center;transition:all .2s;user-select:none}
+.cxc:hover{border-color:#2a6a3a}
+.cxc.s{border-color:#2a6a3a;background:#f4f8ec}
+.cxl{font-size:13px;font-weight:600;color:#1a3a1a;margin-bottom:3px}
+.cxd{font-size:11px;color:#6a7a5a;line-height:1.4}
+.pg2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pc{padding:20px;border-radius:16px;border:1.5px solid #e0ddd0;background:#fff;text-align:center}
+.pl{font-size:12px;font-weight:600;color:#6a7a5a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
 .cr{display:flex;align-items:center;gap:10px;justify-content:center}
-.cb{width:34px;height:34px;border-radius:50%;border:2px solid #0d7272;background:#fff;font-size:17px;cursor:pointer;color:#0d7272;display:flex;align-items:center;justify-content:center;transition:all .14s}
-.cb:hover:not(:disabled){background:#0d7272;color:#fff}
+.cb{width:36px;height:36px;border-radius:50%;border:2px solid #2a6a3a;background:#fff;font-size:18px;cursor:pointer;color:#2a6a3a;display:flex;align-items:center;justify-content:center;transition:all .14s}
+.cb:hover:not(:disabled){background:#2a6a3a;color:#fff}
 .cb:disabled{opacity:.3;cursor:not-allowed}
-.cn{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:600;color:#0a4848;min-width:36px;text-align:center}
-.kt{display:flex;align-items:flex-start;gap:11px;padding:12px 15px;background:#f8fefe;border-radius:10px;border:1.5px solid #c8e4e4;cursor:pointer;margin-top:11px;user-select:none;transition:all .18s}
-.kt.on{background:#f0fafa;border-color:#0d7272}
-.kb{width:19px;height:19px;border-radius:5px;border:2px solid #9acaca;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .16s;margin-top:1px}
-.kt.on .kb{background:#0d7272;border-color:#0d7272;color:#fff}
-.kt-t{font-size:13px;color:#0a4848;font-weight:500}
-.kt-s{font-size:11px;color:#4a7070;margin-top:1px}
-
-.mg{display:grid;gap:5px}
-.gh{font-size:10px;font-weight:600;color:#4a7070;text-align:center;padding:5px 2px;text-transform:uppercase;letter-spacing:.5px}
-.gl{font-size:11px;font-weight:600;color:#0a4848;display:flex;align-items:center;padding:4px 5px;line-height:1.3}
-.mc{background:#fff;border-radius:10px;padding:8px 7px;border:1.5px solid #c8e4e4;position:relative;min-height:104px;display:flex;flex-direction:column;transition:border-color .18s}
-.mc:hover{border-color:#6abcbc}
-.mc.ss{border-color:#0d7272;background:#f0fafa}
-.mc.ssk{border-color:#2a7a2a;background:#f0f8f0}
-.mn{font-size:11px;font-weight:600;color:#0a4848;line-height:1.3;margin-bottom:2px;cursor:pointer}
-.mn:hover{color:#0d7272;text-decoration:underline}
-.md{font-size:10px;color:#4a7070;line-height:1.4;flex:1}
-.mk{font-size:10px;color:#2a7a2a;background:#e8f5e8;padding:2px 5px;border-radius:4px;margin-top:3px;display:inline-block}
+.cn{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:600;color:#1a3a1a;min-width:38px;text-align:center}
+.kt{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;background:#f8f5ee;border-radius:12px;border:1.5px solid #e0ddd0;cursor:pointer;margin-top:12px;user-select:none;transition:all .18s}
+.kt.on{background:#f0f5e8;border-color:#2a6a3a}
+.kb{width:20px;height:20px;border-radius:6px;border:2px solid #b0c8a0;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .16s;margin-top:1px}
+.kt.on .kb{background:#2a6a3a;border-color:#2a6a3a;color:#fff}
+.kt-t{font-size:13px;color:#1a3a1a;font-weight:500}
+.kt-s{font-size:11px;color:#6a7a5a;margin-top:2px}
+.mg{display:grid;gap:6px}
+.gh{font-size:10px;font-weight:600;color:#8a9a7a;text-align:center;padding:6px 2px;text-transform:uppercase;letter-spacing:.5px}
+.gl{font-size:11px;font-weight:600;color:#1a3a1a;display:flex;align-items:center;padding:4px 5px;line-height:1.3}
+.mc{background:#fff;border-radius:12px;padding:9px 8px;border:1.5px solid #e0ddd0;position:relative;min-height:108px;display:flex;flex-direction:column;transition:all .18s;cursor:pointer}
+.mc:hover{border-color:#a0c090;box-shadow:0 2px 8px rgba(30,60,20,.08)}
+.mc.ss{border-color:#2a6a3a;background:#f4f8ec}
+.mc.ssk{border-color:#5a8a2a;background:#f0f7e4}
+.mn{font-size:11px;font-weight:600;color:#1a3a1a;line-height:1.3;margin-bottom:2px}
+.mn:hover{color:#2a6a3a;text-decoration:underline}
+.md{font-size:10px;color:#6a7a5a;line-height:1.4;flex:1}
+.mk{font-size:10px;color:#2a5a1a;background:#e4f0d4;padding:2px 5px;border-radius:4px;margin-top:3px;display:inline-block;cursor:pointer}
 .mm{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
-.mt{font-size:10px;color:#7a9898}
-.mco{font-size:10px;font-weight:600;color:#0a7070;background:#e8f8f8;padding:1px 5px;border-radius:4px}
+.mt2{font-size:10px;color:#8a9a7a}
+.mco{font-size:10px;font-weight:600;color:#5a6a2a;background:#eef5d8;padding:1px 5px;border-radius:4px}
 .ma{display:flex;gap:2px;margin-top:4px}
 .ib{background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:5px;font-size:12px;transition:background .14s;line-height:1}
-.ib:hover{background:#e0f4f4}
-.cb2{position:absolute;top:5px;left:5px;width:14px;height:14px;background:#0d7272;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;color:#fff}
+.ib:hover{background:#e8f0d8}
+.cb2{position:absolute;top:5px;left:5px;width:14px;height:14px;background:#2a6a3a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;color:#fff}
 .fd{position:absolute;top:4px;right:4px;font-size:10px}
-
-.lh{background:linear-gradient(135deg,#0a4848,#0d7272);border-radius:16px;padding:20px 22px;margin-bottom:18px;color:#fff}
-.lh-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
-.lt{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;margin-bottom:3px}
-.ls{font-size:12px;color:rgba(255,255,255,.7)}
+.lh{background:linear-gradient(135deg,#1a4a2a,#2a6a3a);border-radius:20px;padding:24px;margin-bottom:24px;color:#fff}
+.lh-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.lt{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;margin-bottom:3px}
+.ls{font-size:12px;color:rgba(255,255,255,.65)}
 .lpw{background:rgba(255,255,255,.2);border-radius:100px;height:7px;overflow:hidden;margin-bottom:5px}
 .lpf{height:100%;background:#fff;border-radius:100px;transition:width .4s ease}
-.lpt{font-size:11px;color:rgba(255,255,255,.75);display:flex;justify-content:space-between}
-.la{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
-.lab{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:100px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s;display:inline-flex;align-items:center;gap:5px}
+.lpt{font-size:11px;color:rgba(255,255,255,.7);display:flex;justify-content:space-between}
+.la{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}
+.lab{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:100px;padding:7px 15px;font-size:12px;font-weight:500;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s;display:inline-flex;align-items:center;gap:5px}
 .lab:hover{background:rgba(255,255,255,.25)}
-.ldb{background:linear-gradient(135deg,#1a8a3a,#2aaa5a);border-radius:14px;padding:18px 22px;text-align:center;margin-bottom:16px;color:#fff}
-.ldi{font-size:38px;margin-bottom:7px}
-.ldt{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;margin-bottom:3px}
-.lds{font-size:12px;color:rgba(255,255,255,.8)}
-.cs{margin-bottom:16px}
-.ch{display:flex;align-items:center;justify-content:space-between;padding:9px 0 7px;border-bottom:1px solid #e8f4f4;margin-bottom:2px}
-.chn{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;color:#0a4848;display:flex;align-items:center;gap:7px}
-.chp{font-size:12px;color:#7a9898}
-.li{display:flex;align-items:center;min-height:50px;cursor:pointer;border-radius:12px;transition:background .15s;user-select:none;padding:2px 4px}
-.li:hover{background:#f0fafa}
-.li.di{opacity:.5}
-.lcb{width:48px;height:50px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.circ{width:24px;height:24px;border-radius:50%;border:2px solid #b8d8d8;background:#fff;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
-.li:not(.di) .circ:hover{border-color:#0d7272}
-.circ.ck{background:#0d7272;border-color:#0d7272}
+.ldb{background:linear-gradient(135deg,#2a6a2a,#3a8a3a);border-radius:16px;padding:22px;text-align:center;margin-bottom:18px;color:#fff}
+.ldi{font-size:44px;margin-bottom:8px}
+.ldt{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;margin-bottom:3px}
+.lds{font-size:13px;color:rgba(255,255,255,.8)}
+.cs{margin-bottom:20px}
+.ch{display:flex;align-items:center;justify-content:space-between;padding:10px 0 8px;border-bottom:1px solid #e8e4d8;margin-bottom:4px}
+.chn{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:#1a3a1a;display:flex;align-items:center;gap:8px}
+.chp{font-size:12px;color:#8a9a7a}
+.li{display:flex;align-items:center;min-height:52px;cursor:pointer;border-radius:12px;transition:background .15s;user-select:none;padding:2px 6px}
+.li:hover{background:#f4f0e8}
+.li.di{opacity:.45}
+.lcb{width:50px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.circ{width:26px;height:26px;border-radius:50%;border:2px solid #c8d4b0;background:#fff;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.li:not(.di) .circ:hover{border-color:#2a6a3a}
+.circ.ck{background:#2a6a3a;border-color:#2a6a3a}
 .tick{color:#fff;font-size:13px;font-weight:700;line-height:1}
-.lit{flex:1;font-size:15px;color:#1a3a3a;line-height:1.4;padding:4px 0}
-.li.di .lit{text-decoration:line-through;color:#9abcbc}
-.ldiv{height:1px;background:#e8f4f4;margin:0 52px}
-.air{display:flex;gap:8px;align-items:center;margin-top:12px;padding:9px;background:#f8fefe;border-radius:12px;border:1.5px dashed #b8d8d8}
-.air:focus-within{border-color:#0d7272;background:#f0fafa}
-.ai{flex:1;border:none;background:transparent;font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;color:#1a2f2f;outline:none;padding:2px 0}
-.ai::placeholder{color:#9abcbc}
-.ab{background:#0d7272;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;flex-shrink:0;transition:background .15s}
-.ab:hover{background:#0a5858}
-
-.bsum{background:#f0fafa;border-radius:12px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;border:1px solid #c8e4e4}
-.bsl{font-size:12px;color:#2a6060;font-weight:500}
-.bsv{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:#0a5858}
-.bso{color:#c93939}
-.crr{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap}
-.cc{padding:6px 13px;border-radius:8px;border:1.5px solid #b8d8d8;background:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:all .16s;color:#1a3a3a}
-.cc:hover{border-color:#0d7272}
-.cc.s{background:#0d7272;border-color:#0d7272;color:#fff}
-.brow{display:flex;align-items:center;gap:11px}
+.lit{flex:1;font-size:15px;color:#2a2a1a;line-height:1.4;padding:4px 0}
+.li.di .lit{text-decoration:line-through;color:#aaa898}
+.ldiv{height:1px;background:#f0ece0;margin:0 54px}
+.air{display:flex;gap:9px;align-items:center;margin-top:14px;padding:11px 14px;background:#fff;border-radius:14px;border:1.5px dashed #c8d4b0}
+.air:focus-within{border-color:#2a6a3a;background:#f8faf4}
+.ai{flex:1;border:none;background:transparent;font-size:14px;font-family:'Plus Jakarta Sans',sans-serif;color:#2a2a1a;outline:none;padding:2px 0}
+.ai::placeholder{color:#b0b898}
+.ab{background:#2a6a3a;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;flex-shrink:0;transition:background .15s}
+.ab:hover{background:#1a4a2a}
+.bsum{background:#f4f8ec;border-radius:14px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border:1px solid #d8e4c0}
+.bsl{font-size:12px;color:#3a5a2a;font-weight:500}
+.bsv{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#1a4a1a}
+.bso{color:#b04020}
+.crr{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.cc{padding:7px 14px;border-radius:10px;border:1.5px solid #d0ccb8;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .16s;color:#2a2a1a}
+.cc:hover{border-color:#2a6a3a}
+.cc.s{background:#2a6a3a;border-color:#2a6a3a;color:#fff}
+.brow{display:flex;align-items:center;gap:12px}
 .bw{position:relative;flex:1}
-.bpx{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-weight:600;font-size:14px;color:#4a7070;pointer-events:none}
+.bpx{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-weight:600;font-size:14px;color:#6a7a5a;pointer-events:none}
 .bi{padding-left:28px}
-.pl2{font-size:12px;color:#4a7070;white-space:nowrap;font-weight:500}
-
-.lnd-h{text-align:center;padding:44px 0 32px}
-.lnd-l{width:100px;margin:0 auto 14px;display:block}
-.lnd-t{font-family:'Cormorant Garamond',serif;font-size:44px;font-weight:600;color:#0a4848;line-height:1.1;margin-bottom:9px}
-.lnd-s{font-size:15px;color:#4a7070;max-width:400px;margin:0 auto 26px;line-height:1.6;font-weight:300}
-.cwc{background:linear-gradient(135deg,#0a4848,#0d7272);border-radius:18px;padding:22px 26px;margin-bottom:16px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.cwt{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.6);margin-bottom:4px}
-.cww{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;margin-bottom:3px}
-.cws{font-size:13px;color:rgba(255,255,255,.7)}
-.cwa{display:flex;gap:8px;flex-wrap:wrap}
-.bw2{background:#fff;color:#0a4848;border:none;padding:9px 18px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s;display:inline-flex;align-items:center;gap:5px}
-.bw2:hover{background:#e0f4f4;transform:translateY(-1px)}
-.bow{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.4);padding:8px 16px;border-radius:100px;font-size:13px;font-weight:500;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s;display:inline-flex;align-items:center;gap:5px}
-.bow:hover{background:rgba(255,255,255,.12);border-color:#fff}
-.ltt{background:#fff;border-radius:14px;border:1.5px solid #c8e4e4;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;cursor:pointer;transition:all .2s}
-.ltt:hover{border-color:#0d7272;transform:translateY(-1px)}
-.lti{font-size:26px}
-.lttl{font-weight:600;font-size:14px;color:#0a4848}
-.lts{font-size:11px;color:#4a7070;margin-top:1px}
-.ltp{font-size:13px;font-weight:600;color:#0d7272}
-.calt{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#0a4848;margin-bottom:12px}
-.wg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-bottom:22px}
-.wc{background:#fff;border-radius:14px;padding:14px 16px;border:1.5px solid #c8e4e4;transition:all .2s;position:relative}
-.wc.cl{cursor:pointer}
-.wc.cl:hover{border-color:#0d7272;transform:translateY(-2px);box-shadow:0 4px 14px rgba(13,114,114,.1)}
-.wc.cur{border-color:#f09200}
-.wc.emp{border-style:dashed}
-.wl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:#7a9898;margin-bottom:4px}
-.wr{font-family:'Cormorant Garamond',serif;font-size:15px;font-weight:600;color:#0a4848;margin-bottom:6px}
-.wm{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
-.wch{font-size:10px;padding:2px 7px;background:#f0fafa;border-radius:100px;color:#0d7272;border:1px solid #c8e4e4}
-.wb{position:absolute;top:10px;right:10px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:100px;text-transform:uppercase;letter-spacing:.4px}
-.wb.now{background:#f09200;color:#fff}
-.wb.don{background:#e0f4f4;color:#0d7272}
-.wa{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
-.wet{font-size:12px;color:#9abcbc;padding:5px 0}
-.fub{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px;padding:12px 16px;background:#f0fafa;border-radius:12px;border:1px solid #c8e4e4;margin-bottom:18px}
-.fuv{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:600;color:#0a4848}
-.fuh{font-size:11px;color:#7a9898;margin-top:1px}
-.fubtn{display:inline-flex;align-items:center;gap:5px;padding:6px 15px;border-radius:100px;border:1.5px solid #0d7272;background:#fff;color:#0d7272;font-size:12px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s}
-.fubtn:hover{background:#0d7272;color:#fff}
+.pl2{font-size:12px;color:#6a7a5a;white-space:nowrap;font-weight:500}
+.land-hero{text-align:center;padding:56px 16px 44px}
+.land-logo{width:96px;margin:0 auto 20px;display:block}
+.land-tagline{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#8a9a7a;margin-bottom:12px}
+.land-h1{font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:600;color:#1a3a1a;line-height:1.05;margin-bottom:14px}
+.land-h1 em{color:#c4622d;font-style:italic}
+.land-sub{font-size:15px;color:#5a6a4a;max-width:380px;margin:0 auto;line-height:1.7;font-weight:300}
+.land-cta{margin-top:28px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn-cta-p{background:#1a4a2a;color:#fff;border:none;padding:14px 28px;border-radius:100px;font-size:15px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s}
+.btn-cta-p:hover{background:#0f3020;transform:translateY(-1px);box-shadow:0 6px 20px rgba(26,74,42,.3)}
+.btn-cta-s{background:transparent;color:#2a6a3a;border:1.5px solid #a0c090;padding:13px 24px;border-radius:100px;font-size:14px;font-weight:500;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s}
+.btn-cta-s:hover{background:#f0f5e8}
+.cw-hero{border-radius:22px;overflow:hidden;margin-bottom:28px}
+.cw-bg{background:linear-gradient(145deg,#1a4a2a,#2a6a3a);padding:28px 28px 24px;color:#fff}
+.cw-eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,.5);margin-bottom:8px}
+.cw-range{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;margin-bottom:6px}
+.cw-status{font-size:13px;color:rgba(255,255,255,.65);margin-bottom:20px}
+.cw-meals-preview{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+.cw-meal-pill{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:500;padding:5px 13px;border-radius:100px}
+.cw-actions{display:flex;gap:9px;flex-wrap:wrap}
+.cw-btn-p{background:#fff;color:#1a4a2a;border:none;padding:11px 22px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s}
+.cw-btn-p:hover{background:#f0f5e8;transform:translateY(-1px)}
+.cw-btn-s{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.4);padding:10px 18px;border-radius:100px;font-size:13px;font-weight:500;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s}
+.cw-btn-s:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.7)}
+.list-strip{background:#fff;border-radius:16px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #e0ddd0;cursor:pointer;transition:all .2s}
+.list-strip:hover{border-color:#a0c090;transform:translateY(-1px);box-shadow:0 4px 12px rgba(30,60,20,.08)}
+.ls-left{display:flex;align-items:center;gap:14px}
+.ls-icon{width:44px;height:44px;background:#f0f5e8;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.ls-title{font-size:14px;font-weight:600;color:#1a3a1a;margin-bottom:2px}
+.ls-sub{font-size:12px;color:#7a8a6a}
+.ls-prog{font-size:13px;font-weight:600;color:#2a6a3a}
+.wt-section{margin-bottom:32px}
+.wt-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#1a3a1a;margin-bottom:16px}
+.wt-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+.wt-scroll::-webkit-scrollbar{display:none}
+.wt-card{flex-shrink:0;width:158px;background:#fff;border-radius:16px;padding:16px;border:1.5px solid #e0ddd0;cursor:pointer;transition:all .2s;position:relative}
+.wt-card:hover{border-color:#a0c090;transform:translateY(-2px);box-shadow:0 4px 12px rgba(30,60,20,.1)}
+.wt-card.cur{border-color:#c4622d}
+.wt-card.emp{border-style:dashed;cursor:default}
+.wt-card.emp:hover{transform:none;box-shadow:none}
+.wt-dot{width:8px;height:8px;border-radius:50%;background:#e0ddd0;margin-bottom:10px}
+.wt-card.cur .wt-dot{background:#c4622d}
+.wt-card.has .wt-dot{background:#2a6a3a}
+.wt-date-range{font-size:12px;font-weight:600;color:#1a3a1a;margin-bottom:4px;line-height:1.3}
+.wt-lbl{font-size:10px;color:#8a9a7a;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+.wt-meals{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.wt-meal{font-size:11px;color:#3a5a3a;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wt-empty{font-size:11px;color:#b0b898;margin-bottom:8px}
+.wt-acts{display:flex;gap:5px;flex-wrap:wrap}
+.wt-btn{font-size:11px;padding:4px 10px;border-radius:100px;border:1.5px solid #d0ccb8;background:transparent;color:#4a6a4a;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .15s}
+.wt-btn:hover{border-color:#2a6a3a;color:#2a6a3a}
+.wt-btn.p{background:#1a4a2a;color:#fff;border-color:#1a4a2a}
+.wt-badge{position:absolute;top:-7px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:700;padding:2px 8px;border-radius:100px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.wt-badge.now{background:#c4622d;color:#fff}
+.wt-badge.don{background:#e8f0d8;color:#3a5a2a}
+.land-footer{text-align:center;padding:16px 0 8px;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap}
+.land-footer-v{font-size:11px;color:#aaa898}
+.btn-fu-sm{background:transparent;border:none;color:#8a9a7a;font-size:12px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:8px;transition:background .15s}
+.btn-fu-sm:hover{background:#f0ece0;color:#2a3a1a}
+.plan-strip{border-radius:14px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.plan-strip.free{background:#fff;border:1px solid #e0ddd0}
+.plan-strip.premium{background:linear-gradient(135deg,#1a4a2a,#2a6a3a);color:#fff}
+.lsc{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:58vh;gap:22px;text-align:center}
+.lsc-icon{font-size:64px;animation:lspulse 2.2s ease-in-out infinite}
+@keyframes lspulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+.lm{font-family:'Cormorant Garamond',serif;font-size:22px;color:#1a3a1a;font-style:italic;max-width:300px}
+.lsb{font-size:13px;color:#8a9a7a}
+.mo{position:fixed;inset:0;background:rgba(20,30,15,.65);z-index:200;display:flex;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(5px)}
+.md2{background:#fff;border-radius:22px;padding:24px;max-width:430px;width:100%}
+.mtt{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#1a3a1a;margin-bottom:3px}
+.ms{font-size:13px;color:#6a7a5a;margin-bottom:16px}
+.sc{padding:13px;border-radius:13px;border:1.5px solid #e0ddd0;margin-bottom:8px;cursor:pointer;transition:all .17s}
+.sc:hover{border-color:#2a6a3a;background:#f4f8ec;transform:translateX(3px)}
+.sn{font-weight:600;font-size:14px;color:#1a3a1a;margin-bottom:2px}
+.sd{font-size:12px;color:#6a7a5a}
+.sf{display:flex;gap:9px;margin-top:4px;font-size:11px;color:#8a9a7a}
+.ro{position:fixed;inset:0;background:rgba(20,30,15,.65);z-index:300;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(7px)}
+@media(min-width:600px){.ro{align-items:center;padding:22px}}
+.rm{background:#fff;border-radius:24px 24px 0 0;max-width:540px;width:100%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column}
+@media(min-width:600px){.rm{border-radius:24px;max-height:88vh}}
+.rph{width:100%;height:240px;object-fit:cover;display:block}
+.rpf{width:100%;height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.rpl{width:100%;height:240px;background:#e8e4d8;display:flex;align-items:center;justify-content:center}
+.rph2{padding:18px 22px 14px;border-bottom:1px solid #f0ece0;flex-shrink:0}
+.rht{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;margin-bottom:10px}
+.rc{background:#f4f0e8;border:none;color:#6a7a5a;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .14s}
+.rc:hover{background:#e8e4d8;color:#1a3a1a}
+.rn{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:#1a3a1a;line-height:1.2;flex:1}
+.rps{display:flex;gap:6px;flex-wrap:wrap}
+.rp{background:#f4f0e8;border:1px solid #e0ddd0;border-radius:100px;padding:4px 11px;font-size:11px;font-weight:500;color:#2a3a1a}
+.rb2{overflow-y:auto;padding:16px 22px 28px;flex:1}
+.rst{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8a9a7a;margin:16px 0 9px}
+.rst:first-child{margin-top:0}
+.ri{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f0ece0;font-size:14px;color:#2a2a1a}
+.ri:last-child{border:none}
+.rd{width:7px;height:7px;border-radius:50%;background:#2a6a3a;flex-shrink:0}
+.rstep{display:flex;gap:12px;margin-bottom:13px;align-items:flex-start}
+.rsn{min-width:27px;height:27px;border-radius:50%;background:#c4622d;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.rst2{font-size:14px;color:#2a2a1a;line-height:1.65;flex:1}
+.rtip{background:#f4f8ec;border-left:3px solid #2a6a3a;padding:10px 14px;border-radius:0 10px 10px 0;font-size:13px;color:#1a3a1a;line-height:1.6;margin-top:6px}
+.rld{display:flex;flex-direction:column;align-items:center;gap:12px;padding:28px 0;color:#6a7a5a;font-size:13px}
+.rsp{width:30px;height:30px;border:3px solid #e0ddd0;border-top-color:#2a6a3a;border-radius:50%;animation:rsp .8s linear infinite}
+@keyframes rsp{to{transform:rotate(360deg)}}
+.mp{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.mpl{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;background:#f4f8ec;border:1.5px solid #c8d4b0;border-radius:100px;font-size:12px;color:#2a6a3a;font-weight:500;cursor:pointer;transition:all .16s}
+.mpl:hover{border-color:#2a6a3a;background:#e8f0d8}
+.tst{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a3a1a;color:#fff;padding:10px 24px;border-radius:100px;font-size:13px;font-weight:500;z-index:500;animation:tst .3s ease;pointer-events:none;white-space:nowrap}
+@keyframes tst{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.sh{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
+.wkc{background:#f0f5e8;border-radius:10px;padding:9px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:13px;color:#1a3a1a;font-weight:600;border:1px solid #d8e4c0}
+.mtg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mtc{padding:18px 12px;border-radius:16px;border:2px solid #d0ccb8;background:#fff;cursor:pointer;text-align:center;transition:all .2s;user-select:none}
+.mtc:hover{border-color:#2a6a3a}
+.mtc.s{border-color:#2a6a3a;background:#f4f8ec}
+.mtic{font-size:24px;margin-bottom:6px}
+.mtl{font-weight:600;font-size:14px;color:#1a3a1a}
+.mts{font-size:11px;color:#6a7a5a;margin-top:2px}
 .spin{animation:s360 .7s linear infinite}
 @keyframes s360{to{transform:rotate(360deg)}}
-.lsc{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:56vh;gap:20px;text-align:center}
-.da{animation:dr .7s ease-in-out infinite alternate;display:inline-block}
-@keyframes dr{from{transform:rotate(-12deg) scale(.95)}to{transform:rotate(12deg) scale(1.05)}}
-.lm{font-family:'Cormorant Garamond',serif;font-size:21px;color:#0a4848;font-style:italic;max-width:290px}
-.lsb{font-size:13px;color:#7a9898}
-.mo{position:fixed;inset:0;background:rgba(10,40,40,.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(4px)}
-.md2{background:#fff;border-radius:20px;padding:22px;max-width:430px;width:100%}
-.mtt{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:600;color:#0a4848;margin-bottom:3px}
-.ms{font-size:13px;color:#4a7070;margin-bottom:14px}
-.sc{padding:11px;border-radius:11px;border:1.5px solid #c8e4e4;margin-bottom:7px;cursor:pointer;transition:all .17s}
-.sc:hover{border-color:#0d7272;background:#f0fafa;transform:translateX(3px)}
-.sn{font-weight:600;font-size:14px;color:#0a4848;margin-bottom:2px}
-.sd{font-size:12px;color:#4a7070}
-.sf{display:flex;gap:9px;margin-top:4px;font-size:11px;color:#7a9898}
-.ro{position:fixed;inset:0;background:rgba(10,40,40,.6);z-index:300;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px)}
-@media(min-width:600px){.ro{align-items:center;padding:20px}}
-.rm{background:#fff;border-radius:22px 22px 0 0;max-width:530px;width:100%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column}
-@media(min-width:600px){.rm{border-radius:22px;max-height:88vh}}
-.rph{width:100%;height:200px;object-fit:cover;display:block}
-.rpf{width:100%;height:200px;display:flex;align-items:center;justify-content:center;font-size:64px}
-.rpl{width:100%;height:200px;background:#e8f4f4;display:flex;align-items:center;justify-content:center}
-.rph2{padding:15px 19px 12px;border-bottom:1px solid #e8f4f4;flex-shrink:0}
-.rht{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;margin-bottom:9px}
-.rc{background:#f0fafa;border:none;color:#4a7070;width:28px;height:28px;border-radius:50%;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .14s}
-.rc:hover{background:#c8e4e4}
-.rn{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:600;color:#0a4848;line-height:1.25;flex:1}
-.rps{display:flex;gap:5px;flex-wrap:wrap}
-.rp{background:#f0fafa;border:1px solid #c8e4e4;border-radius:100px;padding:3px 10px;font-size:11px;font-weight:500;color:#0a4848}
-.rb2{overflow-y:auto;padding:13px 19px 22px;flex:1}
-.rst{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#4a7070;margin:14px 0 8px}
-.rst:first-child{margin-top:0}
-.ri{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid #e8f4f4;font-size:14px;color:#1a3a3a}
-.ri:last-child{border:none}
-.rd{width:7px;height:7px;border-radius:50%;background:#0d7272;flex-shrink:0}
-.rstep{display:flex;gap:10px;margin-bottom:11px;align-items:flex-start}
-.rsn{min-width:25px;height:25px;border-radius:50%;background:#f09200;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
-.rst2{font-size:14px;color:#1a3a3a;line-height:1.6;flex:1}
-.rtip{background:#f0fafa;border-left:3px solid #0d7272;padding:9px 13px;border-radius:0 9px 9px 0;font-size:12px;color:#0a4848;line-height:1.5;margin-top:3px}
-.rld{display:flex;flex-direction:column;align-items:center;gap:10px;padding:24px 0;color:#4a7070;font-size:13px}
-.rsp{width:28px;height:28px;border:3px solid #c8e4e4;border-top-color:#0d7272;border-radius:50%;animation:rsp .8s linear infinite}
-@keyframes rsp{to{transform:rotate(360deg)}}
-.mp{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.mpl{display:inline-flex;align-items:center;gap:4px;padding:4px 11px;background:#f0fafa;border:1.5px solid #b8d8d8;border-radius:100px;font-size:12px;color:#0d7272;font-weight:500;cursor:pointer;transition:all .16s}
-.mpl:hover{border-color:#0d7272;background:#e0f4f4}
-.tst{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#0a4848;color:#fff;padding:8px 20px;border-radius:100px;font-size:13px;font-weight:500;z-index:500;animation:tst .3s ease;pointer-events:none;white-space:nowrap}
-@keyframes tst{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
-.sh{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
-.wkc{background:#e8f4f4;border-radius:9px;padding:8px 13px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:13px;color:#0a4848;font-weight:600}
-.mtg{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-.mtc{padding:14px 10px;border-radius:13px;border:2px solid #b8d8d8;background:#fff;cursor:pointer;text-align:center;transition:all .2s;user-select:none}
-.mtc:hover{border-color:#0d7272}
-.mtc.s{border-color:#0d7272;background:#f0fafa}
-.mtic{font-size:22px;margin-bottom:5px}
-.mtl{font-weight:600;font-size:13px;color:#0a4848}
-.mts{font-size:11px;color:#4a7070;margin-top:1px}
 `;
+
+
 
 export default function App() {
   const [step, setStep]       = useState('landing');
@@ -552,11 +654,27 @@ export default function App() {
       const bn=prefs.budgetEnabled&&bgt>0?'Budget:'+sym+bgt+'/week.':'';
       const cn=prefs.dishComplexity==='simple'?'Prefer quick easy dishes under 30 minutes.':prefs.dishComplexity==='elaborate'?'Include impressive multi-step recipes.':'';
       const kidsField = prefs.kids>0&&prefs.kidsDifferentFood?',"kidsAlt":{"name":"s","ingredients":["qty item"]}':'';
-      const kn = prefs.kids>0&&prefs.kidsDifferentFood?`Each meal must include "kidsAlt":{"name":"simple child-friendly dish","ingredients":["qty unit item",...]} with ${prefs.kids} kid-sized portions, mild flavours.`:'';
-      const dT='{"'+prefs.mealTypes.join('":M,"')+'":M}'.replace(/M(?=")/g,'{"name":"s","description":"8w","time":"Xm","estCost":0.00,"ingredients":["qty item"]'+kidsField+'}');
+      const kn = prefs.kids>0&&prefs.kidsDifferentFood?`Each meal must include "kidsAlt":{"name":"child-friendly dish","ingredients":["qty item"]} for ${prefs.kids} kids.`:'';
+      const dT='{"'+prefs.mealTypes.join('":M,"')+'":M}'.replace(/M(?=")/g,'{"name":"s","description":"8w","time":"Xm","estCost":0.00,"ingredients":["qty item","qty item"]'+kidsField+'}');
       const dJ=sdays.map(d=>'"'+d.toLowerCase()+'":'+dT).join(',');
-      const raw=await callAI('Generate meal plan for these days only. Return ONLY compact JSON.\nMeal types:'+prefs.mealTypes.join(',')+'|Cuisines:'+(prefs.cuisines.length?prefs.cuisines.join(','):'varied')+'|Dietary:'+(prefs.dietary.length?prefs.dietary.join(','):'none')+'|Adventure:'+prefs.variability+'/100|Servings:'+tsrv+'|Favs:'+(fh||'none')+'|'+bn+' '+cn+' '+kn+'\nReturn:{'+dJ+'}',4000);
+      const raw=await callAI(
+        `Meal plan. ONLY compact JSON, no whitespace.\n`+
+        `Days:${sdays.map(d=>d.slice(0,3)).join(',')}|Types:${prefs.mealTypes.join(',')}|`+
+        `Cuisines:${prefs.cuisines.length?prefs.cuisines.join(','):'varied'}|`+
+        `Dietary:${prefs.dietary.length?prefs.dietary.join(','):'none'}|`+
+        `Adventure:${prefs.variability}%|Servings:${tsrv}|Favs:${fh||'none'}|${bn}${cn}${kn}\n`+
+        `Return:{${dJ}}`,
+        4000
+      );
       const p2=JSON.parse(raw);
+      // Validate — at least half the selected days must have at least one meal
+      const filledDays = sdays.filter(d => {
+        const day = p2[d.toLowerCase()];
+        return day && prefs.mealTypes.some(t => day[t]?.name);
+      });
+      if(filledDays.length < Math.ceil(sdays.length / 2)) {
+        throw new Error('Meal plan came back mostly empty — please try rolling again.');
+      }
       const c2={};
       sdays.forEach(d=>prefs.mealTypes.forEach(t=>{const m=p2[d.toLowerCase()]?.[t];if(m&&m.estCost) c2[d.toLowerCase()+'-'+t]=m.estCost;}));
       clearInterval(iv); setPlan(p2); setCosts(c2);
@@ -629,7 +747,7 @@ export default function App() {
     const isKids = variant==='kids';
     track('recipe_opened',{meal:meal.name,type:isKids?'kids':'adult',meal_type:mt});
     setRecipe({meal,mt,variant,steps:[],tip:'',photoUrl:null,photoLd:true,loading:true});
-    fetchPhoto(meal.name).then(url=>setRecipe(p=>p?{...p,photoUrl:url,photoLd:false}:null));
+    fetchPhoto(meal.name, mt).then(url=>setRecipe(p=>p?{...p,photoUrl:url,photoLd:false}:null));
     const srv = isKids ? prefs.kids : tsrv;
     const prompt = isKids
       ? `Write a simple, fun, child-friendly recipe for "${meal.name}" for ${srv} kids aged 4-12. Use mild flavours, simple techniques.
@@ -652,90 +770,125 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
     const [cdel,setCdel]=useState(null);
     function sample(d){if(!d?.mealPlan)return[];return DAYS.slice(0,3).map(day=>{const dy=d.mealPlan[day.toLowerCase()];return dy?Object.values(dy)[0]?.name:null;}).filter(Boolean);}
     function hdel(key){delWk(key);setCdel(null);pop('Week deleted');setStep(s=>s);}
+    const cwSample=sample(cwd);
+
     return (
       <div>
-        <div className="lnd-h">
-          <img src="/logo.png" alt="DishRoll" className="lnd-l"/>
-          <div className="lnd-t">Your weekly<br/><span style={{color:'#f09200',fontStyle:'italic'}}>meal command centre</span></div>
-          <p className="lnd-s">Plan every week, store every roll, and always know what's for dinner.</p>
-        </div>
-        <div className="fub">
-          <div><div className="fuv">v{APP_VERSION}</div><div className="fuh">DishRoll · {new Date().getFullYear()}</div></div>
-          <button className="fubtn" onClick={forceUpdate} disabled={upd}><span className={upd?'spin':''} style={{display:'inline-block'}}>↻</span>{upd?'Updating…':'Force update'}</button>
+        {/* Hero */}
+        <div className="land-hero">
+          <img src="/logo.png" alt="DishRoll" className="land-logo"/>
+          <div className="land-tagline">Weekly meal planning</div>
+          <div className="land-h1">Know what's for<br/><em>dinner every night.</em></div>
+          <p className="land-sub">Plan your week, generate a shopping list, and discover new recipes — all in one place.</p>
+          {!cwd&&(
+            <div className="land-cta">
+              <button className="btn-cta-p" onClick={()=>newRoll(ck)}>Plan this week</button>
+              {!isPro&&<button className="btn-cta-s" onClick={()=>setShowPaywall(true)}>✦ Go Premium</button>}
+            </div>
+          )}
         </div>
 
-        {/* Plan status card */}
+        {/* Plan status — minimal inline strip */}
         {isPro ? (
-          <div style={{background:'linear-gradient(135deg,#1a5a1a,#2a7a2a)',borderRadius:14,padding:'14px 20px',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
+          <div className="plan-strip premium">
             <div>
-              <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.7)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:3}}>✨ DishRoll Premium</div>
-              <div style={{fontSize:14,color:'#fff',fontWeight:500}}>Unlimited rolls · Active</div>
-              <div style={{fontSize:11,color:'rgba(255,255,255,.6)',marginTop:2}}>{premium?.email||''}</div>
+              <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.6)',textTransform:'uppercase',letterSpacing:'1px',marginBottom:2}}>✨ DishRoll Premium</div>
+              <div style={{fontSize:13,color:'#fff',fontWeight:500}}>Unlimited rolls · {premium?.email||'Active'}</div>
             </div>
             <span style={{fontSize:12,color:'rgba(255,255,255,.5)',cursor:'pointer',textDecoration:'underline'}} onClick={cancelPremium}>Remove from device</span>
           </div>
         ) : (
-          <div style={{background:'#fff',borderRadius:14,padding:'14px 20px',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12,border:'1.5px solid #c8e4e4'}}>
-            <div>
-              <div style={{fontSize:13,fontWeight:600,color:'#0a4848',marginBottom:2}}>Free plan — {rollsLeft} roll{rollsLeft!==1?'s':''} left this month</div>
-              <div style={{fontSize:12,color:'#4a7070'}}>Upgrade for unlimited rolls at {PRICE_MONTHLY}/month</div>
+          <div className="plan-strip free">
+            <div style={{fontSize:13,color:'#5a6a4a'}}>
+              Free — <strong style={{color:'#1a3a1a'}}>{rollsLeft} roll{rollsLeft!==1?'s':''}</strong> left this month
             </div>
-            <button onClick={()=>setShowPaywall(true)} style={{padding:'8px 18px',borderRadius:100,border:'none',background:'linear-gradient(135deg,#f09200,#c87800)',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif",whiteSpace:'nowrap'}}>
-              ✨ Go Premium
+            <button onClick={()=>setShowPaywall(true)} style={{padding:'7px 16px',borderRadius:100,border:'none',background:'#c4622d',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif",whiteSpace:'nowrap'}}>
+              ✦ Go Premium — {PRICE_MONTHLY}/mo
             </button>
           </div>
         )}
-        <div className="cwc">
-          <div><div className="cwt">📅 This week</div><div className="cww">{weekLabel(ck)}</div><div className="cws">{cwd?'✓ Already rolled — open or roll again':'🎲 Not rolled yet — start now!'}</div></div>
-          <div className="cwa">
-            {cwd&&<button className="bw2" onClick={()=>openPlan(ck)}>📖 Open plan</button>}
-            <button className={cwd?'bow':'bw2'} onClick={()=>newRoll(ck)}>🎲 {cwd?'Re-roll':'Roll this week'}</button>
-          </div>
-        </div>
-        {hasList&&(
-          <div className="ltt" onClick={()=>openList(ck)}>
-            <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <div className="lti">🛒</div>
-              <div><div className="lttl">My shopping list</div><div className="lts">{weekLabel(ck)}</div></div>
-            </div>
-            <div style={{display:'flex',alignItems:'center',gap:10}}>
-              {li>0&&<div className="ltp">{ld}/{li} done</div>}
-              <span style={{fontSize:13,color:'#0d7272',fontWeight:600}}>Open →</span>
-            </div>
-          </div>
-        )}
-        <div className="calt">🗓️ Week calendar</div>
-        <div className="wg">
-          {calKeys.map(key=>{
-            const d=loadWk(key);const isC=isCW(key);const isF=isFW(key);const s=sample(d);
-            return (
-              <div key={key} className={'wc '+(isC?'cur ':'')+(d?'cl ':'')+(!d&&!isF?'emp':'')}>
-                {isC&&<span className="wb now">This week</span>}
-                {!isC&&d&&<span className="wb don">Saved</span>}
-                <div className="wl">{isF?'Upcoming':isC?'Current':'Past'}</div>
-                <div className="wr">{weekLabel(key)}</div>
-                {d&&s.length>0&&<div className="wm">{s.map((n,i)=><span key={i} className="wch">{n}</span>)}{Object.keys(d.mealPlan||{}).length>3&&<span className="wch">+more</span>}</div>}
-                {!d&&<div className="wet">{isF?'Plan ahead →':'No roll yet'}</div>}
-                {d&&<div style={{fontSize:11,color:'#7a9898'}}>Saved {new Date(d.savedAt).toLocaleDateString('en-IE',{day:'numeric',month:'short'})}</div>}
-                <div className="wa">
-                  {d&&<button className="btn bp bsm" onClick={()=>openPlan(key)}>📖 Plan</button>}
-                  {d&&d.shoppingList&&<button className="btn bg bsm" onClick={()=>openList(key)}>🛒 List</button>}
-                  <button className="btn bg bsm" onClick={()=>newRoll(key)}>🎲 {d?'Re-roll':'Roll'}</button>
-                  {d&&cdel!==key&&<button className="btn bd bsm" onClick={()=>setCdel(key)}>🗑️</button>}
-                  {d&&cdel===key&&<><button className="btn bd bsm" onClick={()=>hdel(key)}>Confirm</button><button className="btn bg bsm" onClick={()=>setCdel(null)}>Cancel</button></>}
-                </div>
+
+        {/* Current week hero card */}
+        <div className="cw-hero">
+          <div className="cw-bg">
+            <div className="cw-eyebrow">This week</div>
+            <div className="cw-range">{weekLabel(ck)}</div>
+            <div className="cw-status">{cwd?'Already planned — open or plan again':'Not planned yet'}</div>
+            {cwSample.length>0&&(
+              <div className="cw-meals-preview">
+                {cwSample.map((n,i)=><span key={i} className="cw-meal-pill">{n}</span>)}
+                {Object.keys(cwd?.mealPlan||{}).length>3&&<span className="cw-meal-pill">+ more meals</span>}
               </div>
-            );
-          })}
+            )}
+            <div className="cw-actions">
+              {cwd&&<button className="cw-btn-p" onClick={()=>openPlan(ck)}>Open plan</button>}
+              <button className={cwd?'cw-btn-s':'cw-btn-p'} onClick={()=>newRoll(ck)}>{cwd?'Plan again':'Plan this week'}</button>
+            </div>
+          </div>
         </div>
-        {stored.filter(k=>!calKeys.includes(k)).length>0&&(
-          <><div className="calt" style={{marginTop:6}}>📦 Older rolls</div><div className="wg">{stored.filter(k=>!calKeys.includes(k)).map(key=>{const d=loadWk(key);const s=sample(d);return(<div key={key} className="wc cl"><span className="wb don">Saved</span><div className="wl">Past</div><div className="wr">{weekLabel(key)}</div>{s.length>0&&<div className="wm">{s.map((n,i)=><span key={i} className="wch">{n}</span>)}</div>}<div className="wa"><button className="btn bp bsm" onClick={()=>openPlan(key)}>📖 Plan</button>{d?.shoppingList&&<button className="btn bg bsm" onClick={()=>openList(key)}>🛒 List</button>}<button className="btn bg bsm" onClick={()=>newRoll(key)}>🎲 Re-roll</button></div></div>);})}</div></>
+
+        {/* Shopping list strip */}
+        {hasList&&(
+          <div className="list-strip" onClick={()=>openList(ck)}>
+            <div className="ls-left">
+              <div className="ls-icon">🛒</div>
+              <div>
+                <div className="ls-title">Shopping list</div>
+                <div className="ls-sub">{weekLabel(ck)}</div>
+              </div>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              {li>0&&<span className="ls-prog">{ld}/{li} done</span>}
+              <span style={{fontSize:18,color:'#a0c090'}}>›</span>
+            </div>
+          </div>
         )}
+
+        {/* Week timeline — horizontal scroll */}
+        <div className="wt-section">
+          <div className="wt-title">Your weeks</div>
+          <div className="wt-scroll">
+            {calKeys.map(key=>{
+              const d=loadWk(key); const isC=isCW(key); const isF=isFW(key); const s=sample(d);
+              const cls='wt-card '+(isC?'cur ':d?'has ':'')+(!d&&!isF?'emp':'')+(!d&&isF?'emp':'')+(!d&&!isC?'emp':d?'has':'cur');
+              return (
+                <div key={key} className={'wt-card'+(isC?' cur':d?' has':' emp')} onClick={()=>d&&openPlan(key)}>
+                  {isC&&<span className="wt-badge now">This week</span>}
+                  {!isC&&d&&<span className="wt-badge don">Saved</span>}
+                  <div className="wt-dot"/>
+                  <div className="wt-lbl">{isF?'Upcoming':isC?'Current':new Date(key+'T00:00:00').toLocaleDateString('en-IE',{month:'short'})}</div>
+                  <div className="wt-date-range">
+                    {new Date(key+'T00:00:00').toLocaleDateString('en-IE',{day:'numeric',month:'short'})}
+                    {' –'}<br/>
+                    {(()=>{const sun=new Date(key+'T00:00:00');sun.setDate(sun.getDate()+6);return sun.toLocaleDateString('en-IE',{day:'numeric',month:'short'});})()}
+                  </div>
+                  {d&&s.length>0&&<div className="wt-meals">{s.map((n,i)=><div key={i} className="wt-meal">{n}</div>)}</div>}
+                  {!d&&<div className="wt-empty">{isF?'Plan ahead':'No plan yet'}</div>}
+                  <div className="wt-acts">
+                    {d&&<button className="wt-btn p" onClick={e=>{e.stopPropagation();openPlan(key);}}>Open</button>}
+                    {d?.shoppingList&&<button className="wt-btn" onClick={e=>{e.stopPropagation();openList(key);}}>List</button>}
+                    <button className="wt-btn" onClick={e=>{e.stopPropagation();newRoll(key);}}>{d?'Re-plan':'Plan'}</button>
+                    {d&&cdel!==key&&<button className="wt-btn" style={{color:'#b04020',borderColor:'#e0a898'}} onClick={e=>{e.stopPropagation();setCdel(key);}}>✕</button>}
+                    {d&&cdel===key&&<><button className="wt-btn" style={{color:'#b04020',borderColor:'#b04020'}} onClick={e=>{e.stopPropagation();hdel(key);}}>Confirm</button><button className="wt-btn" onClick={e=>{e.stopPropagation();setCdel(null);}}>Cancel</button></>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="land-footer">
+          <span className="land-footer-v">DishRoll v{APP_VERSION}</span>
+          <button className="btn-fu-sm" onClick={forceUpdate} disabled={upd}>
+            <span className={upd?'spin':''} style={{display:'inline-block'}}>↻</span>{upd?'Updating…':'Force update'}
+          </button>
+        </div>
       </div>
     );
   }
 
-  // ── LIST VIEW ────────────────────────────────────────────────────────────────
+    // ── LIST VIEW ────────────────────────────────────────────────────────────────
   function ListView() {
     if(!sl) return null;
     const cats=[...sl.categories];
@@ -745,7 +898,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
         <div className="lh">
           <div className="lh-top">
             <div><div className="lt">🛒 Shopping list</div><div className="ls">{awk?weekLabel(awk):''}</div></div>
-            <button className="btn bg bsm" style={{color:'#c8e4e4',borderColor:'rgba(255,255,255,.3)',background:'rgba(255,255,255,.1)'}} onClick={()=>setStep(plan?'mealplan':'landing')}>← {plan?'Plan':'Home'}</button>
+            <button className="btn bg bsm" style={{color:'#e0ddd0',borderColor:'rgba(255,255,255,.3)',background:'rgba(255,255,255,.1)'}} onClick={()=>setStep(plan?'mealplan':'landing')}>← {plan?'Plan':'Home'}</button>
           </div>
           <div className="lpw"><div className="lpf" style={{width:total>0?Math.round((done/total)*100)+'%':'0%'}}/></div>
           <div className="lpt"><span>{done} of {total} items</span><span>{total>0?Math.round((done/total)*100):0}% done</span></div>
@@ -796,10 +949,10 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
           {/* Header */}
           <div style={{textAlign:'center',marginBottom:22}}>
             <div style={{fontSize:44,marginBottom:8}}>🎲</div>
-            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,fontWeight:600,color:'#0a4848',marginBottom:6}}>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,fontWeight:600,color:'#1a3a1a',marginBottom:6}}>
               You've used your free roll
             </div>
-            <div style={{fontSize:14,color:'#4a7070',lineHeight:1.6}}>
+            <div style={{fontSize:14,color:'#5a6a4a',lineHeight:1.6}}>
               Free plan includes <strong>1 roll per month</strong>.<br/>
               Upgrade to Premium for unlimited rolls.
             </div>
@@ -808,48 +961,48 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
           {/* Plan comparison */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:20}}>
             {/* Free */}
-            <div style={{padding:'14px 16px',borderRadius:12,border:'1.5px solid #c8e4e4',background:'#f8fefe'}}>
-              <div style={{fontSize:12,fontWeight:700,color:'#7a9898',textTransform:'uppercase',letterSpacing:'.6px',marginBottom:8}}>Free</div>
-              <div style={{fontSize:11,color:'#4a7070',lineHeight:2}}>
+            <div style={{padding:'14px 16px',borderRadius:12,border:'1.5px solid #e0ddd0',background:'#f8f5ee'}}>
+              <div style={{fontSize:12,fontWeight:700,color:'#8a9a7a',textTransform:'uppercase',letterSpacing:'.6px',marginBottom:8}}>Free</div>
+              <div style={{fontSize:11,color:'#5a6a4a',lineHeight:2}}>
                 ✓ 1 roll/month<br/>
                 ✓ Shopping list<br/>
                 ✓ Week calendar<br/>
                 ✓ Recipes
               </div>
-              <div style={{fontSize:18,fontWeight:700,color:'#0a4848',marginTop:10}}>€0</div>
+              <div style={{fontSize:18,fontWeight:700,color:'#1a3a1a',marginTop:10}}>€0</div>
             </div>
             {/* Premium */}
-            <div style={{padding:'14px 16px',borderRadius:12,border:'2px solid #f09200',background:'linear-gradient(135deg,#fffbf0,#fff)',position:'relative'}}>
-              <div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',background:'#f09200',color:'#fff',fontSize:10,fontWeight:700,padding:'2px 10px',borderRadius:100,whiteSpace:'nowrap',letterSpacing:'.5px'}}>BEST VALUE</div>
-              <div style={{fontSize:12,fontWeight:700,color:'#c87800',textTransform:'uppercase',letterSpacing:'.6px',marginBottom:8}}>Premium</div>
-              <div style={{fontSize:11,color:'#4a7070',lineHeight:2}}>
+            <div style={{padding:'14px 16px',borderRadius:12,border:'2px solid #c4622d',background:'linear-gradient(135deg,#f8f5ee,#fff)',position:'relative'}}>
+              <div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',background:'#c4622d',color:'#fff',fontSize:10,fontWeight:700,padding:'2px 10px',borderRadius:100,whiteSpace:'nowrap',letterSpacing:'.5px'}}>BEST VALUE</div>
+              <div style={{fontSize:12,fontWeight:700,color:'#a04820',textTransform:'uppercase',letterSpacing:'.6px',marginBottom:8}}>Premium</div>
+              <div style={{fontSize:11,color:'#5a6a4a',lineHeight:2}}>
                 ✓ <strong>Unlimited</strong> rolls<br/>
                 ✓ All Free features<br/>
                 ✓ Kids meal rows<br/>
                 ✓ Full history
               </div>
-              <div style={{fontSize:18,fontWeight:700,color:'#c87800',marginTop:10}}>{PRICE_MONTHLY}<span style={{fontSize:12,color:'#7a9898',fontWeight:400}}>/mo</span></div>
+              <div style={{fontSize:18,fontWeight:700,color:'#a04820',marginTop:10}}>{PRICE_MONTHLY}<span style={{fontSize:12,color:'#8a9a7a',fontWeight:400}}>/mo</span></div>
             </div>
           </div>
 
           {/* CTA */}
           <button
             onClick={startCheckout}
-            style={{width:'100%',padding:'13px',borderRadius:100,border:'none',background:'linear-gradient(135deg,#f09200,#c87800)',color:'#fff',fontSize:15,fontWeight:600,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif",marginBottom:10}}
+            style={{width:'100%',padding:'13px',borderRadius:100,border:'none',background:'linear-gradient(135deg,#c4622d,#a04820)',color:'#fff',fontSize:15,fontWeight:600,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif",marginBottom:10}}
           >
             ✨ Upgrade to Premium — {PRICE_MONTHLY}/month
           </button>
           <button
             onClick={()=>setShowPaywall(false)}
-            style={{width:'100%',padding:'10px',borderRadius:100,border:'1.5px solid #c8e4e4',background:'transparent',color:'#4a7070',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"}}
+            style={{width:'100%',padding:'10px',borderRadius:100,border:'1.5px solid #e0ddd0',background:'transparent',color:'#5a6a4a',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"}}
           >
             Maybe later
           </button>
 
           {/* Restore */}
-          <div style={{textAlign:'center',marginTop:14,fontSize:12,color:'#9abcbc'}}>
+          <div style={{textAlign:'center',marginTop:14,fontSize:12,color:'#a0c090'}}>
             Already subscribed on another device?{' '}
-            <span style={{color:'#0d7272',cursor:'pointer',textDecoration:'underline'}} onClick={startCheckout}>Restore access</span>
+            <span style={{color:'#2a6a3a',cursor:'pointer',textDecoration:'underline'}} onClick={startCheckout}>Restore access</span>
           </div>
         </div>
       </div>
@@ -929,8 +1082,8 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
         <div className="md2" onClick={e=>e.stopPropagation()}>
           <div className="mtt">🎲 Re-roll {swap.mt}</div>
           <div className="ms">{swap.day} · <strong>{cur?.name}</strong></div>
-          {swapLd?<div style={{textAlign:'center',padding:'24px 0'}}><div style={{fontSize:34,animation:'dr .6s ease-in-out infinite alternate',display:'inline-block'}}>🎲</div><div style={{fontSize:13,color:'#4a7070',marginTop:9}}>Rolling…</div></div>
-           :swapOpts.length===0?<div style={{color:'#4a7070',fontSize:13,padding:'10px 0'}}>No alternatives found.</div>
+          {swapLd?<div style={{textAlign:'center',padding:'24px 0'}}><div style={{fontSize:34,animation:'dr .6s ease-in-out infinite alternate',display:'inline-block'}}>🎲</div><div style={{fontSize:13,color:'#5a6a4a',marginTop:9}}>Rolling…</div></div>
+           :swapOpts.length===0?<div style={{color:'#5a6a4a',fontSize:13,padding:'10px 0'}}>No alternatives found.</div>
            :swapOpts.map((o,i)=><div key={i} className="sc" onClick={()=>applySwap(o)}><div className="sn">{o.name}</div><div className="sd">{o.description}</div><div className="sf"><span>⏱ {o.time}</span>{prefs.budgetEnabled&&o.estCost!=null&&<span>💰 {sym}{o.estCost}</span>}</div></div>)}
           <button className="btn bg bsm" style={{marginTop:9}} onClick={()=>setSwap(null)}>Cancel</button>
         </div>
@@ -946,7 +1099,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
       {/* Verifying overlay */}
       {verifying&&(
         <div style={{position:'fixed',inset:0,background:'rgba(10,40,40,.7)',zIndex:400,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:16,backdropFilter:'blur(6px)'}}>
-          <div style={{width:40,height:40,border:'3px solid rgba(255,255,255,.3)',borderTopColor:'#f09200',borderRadius:'50%',animation:'rspin .8s linear infinite'}}/>
+          <div style={{width:40,height:40,border:'3px solid rgba(255,255,255,.3)',borderTopColor:'#c4622d',borderRadius:'50%',animation:'rspin .8s linear infinite'}}/>
           <div style={{color:'#fff',fontSize:16,fontWeight:500}}>Verifying your subscription…</div>
         </div>
       )}
@@ -958,8 +1111,8 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
             <span className="ver">v{APP_VERSION}</span>
             {/* Premium / Free badge */}
             {isPro
-              ? <span style={{fontSize:11,fontWeight:700,background:'linear-gradient(135deg,#f09200,#c87800)',color:'#fff',padding:'3px 9px',borderRadius:100,letterSpacing:'.4px'}}>✨ PREMIUM</span>
-              : <span style={{fontSize:11,fontWeight:600,background:'rgba(255,255,255,.1)',color:'#9adada',padding:'3px 9px',borderRadius:100,cursor:'pointer',letterSpacing:'.4px'}} onClick={()=>setShowPaywall(true)} title="Upgrade to Premium">
+              ? <span style={{fontSize:11,fontWeight:700,background:'linear-gradient(135deg,#c4622d,#a04820)',color:'#fff',padding:'3px 9px',borderRadius:100,letterSpacing:'.4px'}}>✨ PREMIUM</span>
+              : <span style={{fontSize:11,fontWeight:600,background:'rgba(255,255,255,.1)',color:'#b0d0a0',padding:'3px 9px',borderRadius:100,cursor:'pointer',letterSpacing:'.4px'}} onClick={()=>setShowPaywall(true)} title="Upgrade to Premium">
                   FREE · {rollsLeft} roll{rollsLeft!==1?'s':''} left
                 </span>
             }
@@ -980,8 +1133,8 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
           {step==='welcome'&&(
             <div>
               <div style={{textAlign:'center',paddingTop:10,marginBottom:22}}>
-                <div className="title">Roll your week.<br/><span style={{color:'#f09200',fontStyle:'italic'}}>Eat well.</span></div>
-                {awk&&<p style={{fontSize:13,color:'#4a7070',marginTop:5}}>📅 {weekLabel(awk)}</p>}
+                <div className="title">Roll your week.<br/><span style={{color:'#c4622d',fontStyle:'italic'}}>Eat well.</span></div>
+                {awk&&<p style={{fontSize:13,color:'#5a6a4a',marginTop:5}}>📅 {weekLabel(awk)}</p>}
                 <div className="rb" style={{margin:'10px auto 0'}}>🎲 AI-powered random meal generation</div>
               </div>
               <div className="card">
@@ -1003,7 +1156,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
           {/* DAYS — inlined */}
           {step==='days'&&(
             <div>
-              <div className="title">Which days<br/><span style={{color:'#f09200',fontStyle:'italic'}}>do you need meals?</span></div>
+              <div className="title">Which days<br/><span style={{color:'#c4622d',fontStyle:'italic'}}>do you need meals?</span></div>
               <p className="sub">Select the days to plan for.</p>
               <div className="card">
                 <div className="lbl">Select days — {sdays.length} of 7</div>
@@ -1021,7 +1174,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
           {/* CUISINES */}
           {step==='cuisines'&&(
             <div>
-              <div className="title">Cuisine<br/><span style={{color:'#f09200',fontStyle:'italic'}}>preferences</span></div>
+              <div className="title">Cuisine<br/><span style={{color:'#c4622d',fontStyle:'italic'}}>preferences</span></div>
               <p className="sub">Choose cuisines to roll from. Leave blank for maximum variety.</p>
               <div className="card"><div className="lbl">Select your favourites</div><div className="chips">{CUISINE_OPTIONS.map(c=><div key={c} className={'chip '+(prefs.cuisines.includes(c)?'s':'')} onClick={()=>{const n=prefs.cuisines.includes(c)?prefs.cuisines.filter(x=>x!==c):[...prefs.cuisines,c];sp('cuisines',n);}}>{c}</div>)}</div></div>
               <div className="nr"><button className="btn bg" onClick={()=>setStep('days')}>← Back</button><button className="btn bp" onClick={()=>setStep('dietary')}>Continue →</button></div>
@@ -1031,7 +1184,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
           {/* DIETARY */}
           {step==='dietary'&&(
             <div>
-              <div className="title">Dietary<br/><span style={{color:'#f09200',fontStyle:'italic'}}>requirements</span></div>
+              <div className="title">Dietary<br/><span style={{color:'#c4622d',fontStyle:'italic'}}>requirements</span></div>
               <p className="sub">Any restrictions we should keep out of the roll?</p>
               <div className="card"><div className="lbl">Select all that apply</div><div className="chips">{DIETARY_OPTIONS.map(d=><div key={d} className={'chip '+(prefs.dietary.includes(d)?'a':'')} onClick={()=>{const n=prefs.dietary.includes(d)?prefs.dietary.filter(x=>x!==d):[...prefs.dietary,d];sp('dietary',n);}}>{d}</div>)}</div></div>
               <div className="nr"><button className="btn bg" onClick={()=>setStep('cuisines')}>← Back</button><button className="btn bp" onClick={()=>setStep('variability')}>Continue →</button></div>
@@ -1041,9 +1194,9 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
           {/* VARIABILITY — inlined */}
           {step==='variability'&&(
             <div>
-              <div className="title">Your culinary<br/><span style={{color:'#f09200',fontStyle:'italic'}}>personality</span></div>
+              <div className="title">Your culinary<br/><span style={{color:'#c4622d',fontStyle:'italic'}}>personality</span></div>
               <p className="sub">Set your adventure level, complexity, and any must-have meals.</p>
-              <div className="card"><div className="lbl">Adventure level</div><input type="range" min={0} max={100} value={prefs.variability} onChange={e=>sp('variability',+e.target.value)} className="sl"/><div className="vl"><span>🏠 Classics</span><span style={{fontWeight:600,color:'#f09200'}}>{prefs.variability<33?'Safe & familiar':prefs.variability<66?'Balanced mix':'Wild & adventurous 🎲'}</span><span>🌏 Surprises</span></div></div>
+              <div className="card"><div className="lbl">Adventure level</div><input type="range" min={0} max={100} value={prefs.variability} onChange={e=>sp('variability',+e.target.value)} className="sl"/><div className="vl"><span>🏠 Classics</span><span style={{fontWeight:600,color:'#c4622d'}}>{prefs.variability<33?'Safe & familiar':prefs.variability<66?'Balanced mix':'Wild & adventurous 🎲'}</span><span>🌏 Surprises</span></div></div>
               <div className="card"><div className="lbl">Dish complexity</div><div className="cxg">{COMPLEXITY_OPTS.map(o=><div key={o.id} className={'cxc '+(prefs.dishComplexity===o.id?'s':'')} onClick={()=>sp('dishComplexity',o.id)}><div className="cxl">{o.label}</div><div className="cxd">{o.desc}</div></div>)}</div></div>
               <div className="card">
                 <div className="lbl">Lock in favourites (optional)</div>
@@ -1058,7 +1211,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
           {/* BUDGET — inlined */}
           {step==='budget'&&(
             <div>
-              <div className="title">Weekly<br/><span style={{color:'#f09200',fontStyle:'italic'}}>food budget</span></div>
+              <div className="title">Weekly<br/><span style={{color:'#c4622d',fontStyle:'italic'}}>food budget</span></div>
               <p className="sub">Set a grocery budget and we'll keep meals within range. Optional.</p>
               <div className="card">
                 <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:13}}>
@@ -1067,7 +1220,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
                 </div>
                 {prefs.budgetEnabled?(
                   <><div className="lbl">Currency</div><div className="crr">{Object.entries(CURRENCY_SYMBOLS).map(([c,s])=><div key={c} className={'cc '+(prefs.currency===c?'s':'')} onClick={()=>sp('currency',c)}>{s} {c}</div>)}</div><div className="lbl">Weekly grocery budget</div><div className="brow"><div className="bw"><span className="bpx">{sym}</span><input className="inp bi" type="number" min="0" placeholder="e.g. 120" value={prefs.weeklyBudget} onChange={e=>sp('weeklyBudget',e.target.value)}/></div><span className="pl2">per week · {tsrv} person{tsrv>1?'s':''}</span></div>{prefs.weeklyBudget&&<p style={{fontSize:12,color:'#4a8888',marginTop:6}}>≈ {sym}{(parseFloat(prefs.weeklyBudget)/(sdays.length*prefs.mealTypes.length)).toFixed(1)} per meal</p>}</>
-                ):<p style={{fontSize:13,color:'#7a9898',fontStyle:'italic'}}>No budget — rolling purely on taste.</p>}
+                ):<p style={{fontSize:13,color:'#8a9a7a',fontStyle:'italic'}}>No budget — rolling purely on taste.</p>}
               </div>
               <div className="nr"><button className="btn bg" onClick={()=>setStep('variability')}>← Back</button><button className="btn bp" onClick={()=>setStep('servings')}>Continue →</button></div>
             </div>
@@ -1076,7 +1229,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
           {/* SERVINGS — inlined */}
           {step==='servings'&&(
             <div>
-              <div className="title">Who are you<br/><span style={{color:'#f09200',fontStyle:'italic'}}>rolling for?</span></div>
+              <div className="title">Who are you<br/><span style={{color:'#c4622d',fontStyle:'italic'}}>rolling for?</span></div>
               <p className="sub">We'll scale ingredients and portions for your household.</p>
               <div className="card">
                 <div className="pg2">
@@ -1084,7 +1237,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
                   <div className="pc"><div className="pl">👧 Kids</div><div className="cr"><button className="cb" onClick={()=>prefs.kids>0&&sp('kids',prefs.kids-1)} disabled={prefs.kids<=0}>−</button><div className="cn">{prefs.kids}</div><button className="cb" onClick={()=>prefs.kids<8&&sp('kids',prefs.kids+1)}>+</button></div></div>
                 </div>
                 {prefs.kids>0&&<div className={'kt '+(prefs.kidsDifferentFood?'on':'')} onClick={()=>sp('kidsDifferentFood',!prefs.kidsDifferentFood)}><div className="kb">{prefs.kidsDifferentFood?'✓':''}</div><div><div className="kt-t">Kids get different, child-friendly meals</div><div className="kt-s">We'll suggest simpler alternatives alongside adult meals</div></div></div>}
-                <div style={{marginTop:11,padding:'8px 12px',background:'#f8fefe',borderRadius:9,fontSize:13,color:'#4a7070'}}>Cooking for <strong style={{color:'#0a4848'}}>{tsrv} {tsrv===1?'person':'people'}</strong>{prefs.kids>0&&prefs.kidsDifferentFood?' + '+prefs.kids+' kids (separate dishes)':''}</div>
+                <div style={{marginTop:11,padding:'8px 12px',background:'#f8f5ee',borderRadius:9,fontSize:13,color:'#5a6a4a'}}>Cooking for <strong style={{color:'#1a3a1a'}}>{tsrv} {tsrv===1?'person':'people'}</strong>{prefs.kids>0&&prefs.kidsDifferentFood?' + '+prefs.kids+' kids (separate dishes)':''}</div>
               </div>
               {err&&<div className="err">⚠️ {err}</div>}
               <div className="nr"><button className="btn bg" onClick={()=>setStep('budget')}>← Back</button><button className="broll" onClick={roll}>🎲 Roll my week</button></div>
@@ -1092,7 +1245,13 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
           )}
 
           {/* GENERATING */}
-          {step==='generating'&&<div className="lsc"><div className="da"><img src="/logo.png" alt="DishRoll" style={{width:90,height:'auto'}}/></div><div className="lm">{loadMsg}</div><p className="lsb">Usually takes 5–10 seconds…</p></div>}
+          {step==='generating'&&(
+            <div className="lsc">
+              <div className="lsc-icon">🍽️</div>
+              <div className="lm">{loadMsg}</div>
+              <p className="lsb">Usually takes 5–10 seconds…</p>
+            </div>
+          )}
 
           {/* MEAL PLAN */}
           {step==='mealplan'&&plan&&(()=>{
@@ -1101,7 +1260,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
             return (
               <div>
                 <div className="sh">
-                  <div><div className="title" style={{fontSize:26,marginBottom:3}}>Your roll<br/><span style={{color:'#f09200',fontStyle:'italic'}}>is in.</span></div><p style={{fontSize:12,color:'#4a7070',lineHeight:1.7}}>Click name or 📖 for recipe · ☆ favourite · 🎲 re-roll · click cell to add to list</p></div>
+                  <div><div className="title" style={{fontSize:26,marginBottom:3}}>Your roll<br/><span style={{color:'#c4622d',fontStyle:'italic'}}>is in.</span></div><p style={{fontSize:12,color:'#5a6a4a',lineHeight:1.7}}>Click name or 📖 for recipe · ☆ favourite · 🎲 re-roll · click cell to add to list</p></div>
                   <div style={{display:'flex',gap:6,flexShrink:0}}>
                     {hasSl&&<button className="btn bg bsm" onClick={()=>setStep('list')}>🛒 List</button>}
                     <button className="btn bg bsm" onClick={()=>newRoll(awk||cwKey())}>🎲 Re-roll</button>
@@ -1126,7 +1285,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
                                 {fv&&<div className="fd">⭐</div>}
                                 <div className="mn" onClick={e=>{e.stopPropagation();openRecipe(m,mt);}}>{m.name}</div>
                                 <div className="md">{m.description}</div>
-                                <div className="mm"><span className="mt">⏱ {m.time}</span>{prefs.budgetEnabled&&co!=null&&<span className="mco">{sym}{co}</span>}</div>
+                                <div className="mm"><span className="mt2">⏱ {m.time}</span>{prefs.budgetEnabled&&co!=null&&<span className="mco">{sym}{co}</span>}</div>
                                 <div className="ma" onClick={e=>e.stopPropagation()}>
                                   <button className="ib" onClick={()=>tf(m.name)}>{fv?'⭐':'☆'}</button>
                                   <button className="ib" onClick={()=>openRecipe(m,mt)}>📖</button>
@@ -1168,8 +1327,8 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
                 <div className="card">
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8,marginBottom:10}}>
                     <div>
-                      <div style={{fontWeight:600,fontSize:14,color:'#0a4848',marginBottom:2}}>🛒 Build shopping list</div>
-                      <div style={{fontSize:12,color:'#4a7070'}}>
+                      <div style={{fontWeight:600,fontSize:14,color:'#1a3a1a',marginBottom:2}}>🛒 Build shopping list</div>
+                      <div style={{fontSize:12,color:'#5a6a4a'}}>
                         {sel.size} adult{sel.size!==1?'s':''} + {kidsSel.size} kids meal{kidsSel.size!==1?'s':''} selected
                       </div>
                     </div>
