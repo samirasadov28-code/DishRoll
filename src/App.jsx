@@ -448,11 +448,11 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .sf{display:flex;gap:9px;margin-top:4px;font-size:11px;color:#8a9a7a}
 .ro{position:fixed;inset:0;background:rgba(20,30,15,.65);z-index:300;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(7px)}
 @media(min-width:600px){.ro{align-items:center;padding:22px}}
-.rm{background:#fff;border-radius:24px 24px 0 0;max-width:540px;width:100%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column}
+.rm{background:#fff;border-radius:24px 24px 0 0;max-width:540px;width:100%;max-height:92vh;min-height:300px;overflow:hidden;display:flex;flex-direction:column}
 @media(min-width:600px){.rm{border-radius:24px;max-height:88vh}}
-.rph{width:100%;height:240px;object-fit:cover;display:block}
-.rpf{width:100%;height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
-.rpl{width:100%;height:240px;background:#e8e4d8;display:flex;align-items:center;justify-content:center}
+.rph{width:100%;height:220px;object-fit:cover;display:block;flex-shrink:0}
+.rpf{width:100%;height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;flex-shrink:0}
+.rpl{width:100%;height:220px;background:#e8e4d8;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .rph2{padding:18px 22px 14px;border-bottom:1px solid #f0ece0;flex-shrink:0}
 .rht{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;margin-bottom:10px}
 .rc{background:#f4f0e8;border:none;color:#6a7a5a;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .14s}
@@ -460,7 +460,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .rn{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:#1a3a1a;line-height:1.2;flex:1}
 .rps{display:flex;gap:6px;flex-wrap:wrap}
 .rp{background:#f4f0e8;border:1px solid #e0ddd0;border-radius:100px;padding:4px 11px;font-size:11px;font-weight:500;color:#2a3a1a}
-.rb2{overflow-y:auto;padding:16px 22px 28px;flex:1}
+.rb2{overflow-y:auto;padding:16px 22px 28px;flex:1;min-height:0}
 .rst{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#8a9a7a;margin:16px 0 9px}
 .rst:first-child{margin-top:0}
 .ri{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f0ece0;font-size:14px;color:#2a2a1a}
@@ -552,6 +552,16 @@ export default function App() {
     // Handle Stripe checkout return (?session_id=xxx)
     const params=new URLSearchParams(window.location.search);
     const sid=params.get('session_id');
+    const act=params.get('activate');
+
+    // Direct premium activation link (?activate=premium)
+    // Share this URL with users you want to give free access
+    if(act==='premium'){
+      window.history.replaceState({},document.title,window.location.pathname);
+      const pdata={email:'premium@dishroll.app',customerId:'manual',validUntil:Date.now()+365*24*60*60*1000};
+      savePremium(pdata); setPremium(pdata);
+      pop('✨ Premium activated! Enjoy unlimited rolls.');
+    }
     if(sid){
       // Clean the URL immediately
       window.history.replaceState({},document.title,window.location.pathname);
@@ -776,7 +786,10 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
       <div>
         {/* Hero */}
         <div className="land-hero">
-          <img src="/logo.png" alt="DishRoll" className="land-logo"/>
+          <div style={{marginBottom:20,display:'flex',alignItems:'center',justifyContent:'center',gap:0}}>
+            <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:56,fontWeight:700,color:'#1a3a1a',letterSpacing:'-1px',lineHeight:1}}>Dish</span>
+            <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:56,fontWeight:700,color:'#c4622d',letterSpacing:'-1px',lineHeight:1}}>Roll</span>
+          </div>
           <div className="land-tagline">Weekly meal planning</div>
           <div className="land-h1">Know what's for<br/><em>dinner every night.</em></div>
           <p className="land-sub">Plan your week, generate a shopping list, and discover new recipes — all in one place.</p>
@@ -1106,7 +1119,10 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
 
       <div className="app">
         <div className="hdr">
-          <img src="/logo.png" alt="DishRoll" className="hdr-logo" onClick={()=>setStep('landing')}/>
+          <div style={{cursor:'pointer',display:'flex',alignItems:'center'}} onClick={()=>setStep('landing')}>
+            <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,fontWeight:700,color:'#fff',letterSpacing:'-.3px',lineHeight:1}}>Dish</span>
+            <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:26,fontWeight:700,color:'#c4622d',letterSpacing:'-.3px',lineHeight:1}}>Roll</span>
+          </div>
           <div className="hdr-r">
             <span className="ver">v{APP_VERSION}</span>
             {/* Premium / Free badge */}
@@ -1247,7 +1263,10 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
           {/* GENERATING */}
           {step==='generating'&&(
             <div className="lsc">
-              <div className="lsc-icon">🍽️</div>
+              <div style={{display:'flex',alignItems:'center',marginBottom:4}}>
+                <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:42,fontWeight:700,color:'#1a3a1a',lineHeight:1}}>Dish</span>
+                <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:42,fontWeight:700,color:'#c4622d',lineHeight:1}}>Roll</span>
+              </div>
               <div className="lm">{loadMsg}</div>
               <p className="lsb">Usually takes 5–10 seconds…</p>
             </div>
