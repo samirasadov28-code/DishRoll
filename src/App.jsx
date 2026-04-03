@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.2.2";
+const APP_VERSION = "0.2.3";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -187,12 +187,39 @@ function photoFallback(name = "", mt = "") {
   if (mt === "breakfast") return PHOTO_MAP.breakfast;
   return PHOTO_MAP.default;
 }
-async function fetchPhoto(name, mt) {
-  try {
-    const q = encodeURIComponent(name.split(" ").slice(0, 3).join(" "));
-    const r = await fetch("/.netlify/functions/photo?q=" + q);
-    if (r.ok) { const d = await r.json(); if (d.photo) return d.photo; }
-  } catch {}
+// 4-tier photo strategy:
+// 1. TheMealDB — full dish name
+// 2. TheMealDB — each meaningful word in dish name (ingredient-level)
+// 3. TheMealDB — first ingredient from meal
+// 4. Guaranteed Unsplash curated fallback
+async function fetchPhoto(name, mt, ingredients) {
+  const tryProxy = async (q) => {
+    try {
+      const r = await fetch("/.netlify/functions/photo?q=" + encodeURIComponent(q));
+      if (r.ok) { const d = await r.json(); if (d.photo) return d.photo; }
+    } catch {}
+    return null;
+  };
+  // Tier 1: full dish name
+  let p = await tryProxy(name.split(" ").slice(0, 3).join(" "));
+  if (p) return p;
+  // Tier 2: each meaningful word in dish name
+  const stopWords = /^(with|and|in|on|of|the|for|à|al|au|en|à|la)$/i;
+  const words = name.split(" ").filter(w => w.length > 3 && !stopWords.test(w));
+  for (const w of words) {
+    p = await tryProxy(w);
+    if (p) return p;
+  }
+  // Tier 3: first ingredient word (e.g. "400g chicken thighs" → "chicken")
+  if (ingredients && ingredients.length > 0) {
+    const raw = ingredients[0].replace(/^[\d\s.,g]+/i, "").trim();
+    const ingWord = raw.split(" ").find(w => w.length > 3) || "";
+    if (ingWord) {
+      p = await tryProxy(ingWord);
+      if (p) return p;
+    }
+  }
+  // Tier 4: guaranteed curated fallback
   return photoFallback(name, mt);
 }
 
@@ -359,8 +386,10 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .meal-card.kids-card.picked{border-color:#5a8a2a;background:linear-gradient(135deg,#eef7e4,#fafff6)}
 .meal-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .meal-card-flag{font-size:24px;line-height:1;flex-shrink:0;margin-top:2px}
-.meal-card-thumb{width:64px;height:64px;border-radius:12px;object-fit:cover;flex-shrink:0;background:#e8e4d8;display:block}
-.meal-card-thumb-wrap{width:64px;height:64px;border-radius:12px;background:#e8e4d8;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:28px}
+.meal-card-img-box{position:relative;width:72px;height:72px;border-radius:14px;overflow:hidden;flex-shrink:0;background:#e8e4d8}
+.meal-card-thumb{width:72px;height:72px;object-fit:cover;display:block}
+.meal-card-thumb-blank{width:72px;height:72px;background:#e8e4d8}
+.meal-card-flag-badge{position:absolute;bottom:4px;right:4px;font-size:16px;line-height:1;background:rgba(255,255,255,.88);border-radius:6px;padding:2px 3px;backdrop-filter:blur(2px)}
 .meal-card-title-wrap{flex:1;min-width:0}
 .meal-card-name{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:#1a3a1a;line-height:1.2;margin-bottom:4px}
 .meal-card-name:hover{color:#2a6a3a}
@@ -896,25 +925,36 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
     const [imgErr, setImgErr] = useState(false);
     useEffect(() => {
       let alive = true;
-      fetchPhoto(meal.name, mt).then(url => { if(alive) setImgSrc(url || photoFallback(meal.name, mt)); });
+      fetchPhoto(meal.name, mt, meal.ingredients).then(url => {
+        if (alive) setImgSrc(url || photoFallback(meal.name, mt));
+      });
       return () => { alive = false; };
     }, [meal.name, mt]);
+
+    // Ensure proper spacing in meal name (guard against AI-generated camelCase or missing spaces)
+    const displayName = meal.name
+      .replace(/([a-z])([A-Z])/g, "$1 $2")   // camelCase → spaced
+      .replace(/\s+/g, " ")                    // collapse multiple spaces
+      .trim();
+
     return (
       <div className={`meal-card${isSel?" picked":""}`} onClick={onPick}>
         {isSel && <div className="card-sel-badge">✓</div>}
         <div className="meal-card-top">
-          {/* Thumbnail or flag */}
-          {!imgErr && imgSrc
-            ? <img src={imgSrc} alt={meal.name} className="meal-card-thumb" onError={()=>setImgErr(true)} />
-            : <div className="meal-card-thumb-wrap">{cFlag}</div>
-          }
+          {/* Photo box with flag overlay */}
+          <div className="meal-card-img-box">
+            {!imgErr && imgSrc
+              ? <img src={imgSrc} alt={displayName} className="meal-card-thumb" onError={()=>setImgErr(true)} />
+              : <div className="meal-card-thumb-blank" />
+            }
+            {/* Flag always shown as overlay badge */}
+            <div className="meal-card-flag-badge">{cFlag}</div>
+          </div>
+          {/* Title block */}
           <div className="meal-card-title-wrap">
-            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
-              {!imgSrc && <span style={{fontSize:18,lineHeight:1}}>{cFlag}</span>}
-              {cuisine && <div className="meal-card-cuisine">{cuisine}</div>}
-              {isFav && <span className="card-fav-dot">⭐</span>}
-            </div>
-            <div className="meal-card-name" onClick={e=>{e.stopPropagation();onRecipe();}}>{meal.name}</div>
+            {cuisine && <div className="meal-card-cuisine">{cuisine}</div>}
+            <div className="meal-card-name" onClick={e=>{e.stopPropagation();onRecipe();}}>{displayName}</div>
+            {isFav && <div className="card-fav-dot">⭐</div>}
           </div>
         </div>
         {meal.description && <div className="meal-card-desc">{meal.description}</div>}
