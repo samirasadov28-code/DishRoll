@@ -663,10 +663,12 @@ export default function App() {
       const fh=[...prefs.favoriteMeals,...favs.slice(0,4)].filter(Boolean).join(', ');
       const bn=prefs.budgetEnabled&&bgt>0?'Budget:'+sym+bgt+'/week.':'';
       const cn=prefs.dishComplexity==='simple'?'Prefer quick easy dishes under 30 minutes.':prefs.dishComplexity==='elaborate'?'Include impressive multi-step recipes.':'';
-      const kidsField = prefs.kids>0&&prefs.kidsDifferentFood?',"kidsAlt":{"name":"s","ingredients":["qty item"]}':'';
+      const kidsField = prefs.kids>0&&prefs.kidsDifferentFood?`,"kidsAlt":{"name":"kids dish","ingredients":["qty item"]}`:'';
       const kn = prefs.kids>0&&prefs.kidsDifferentFood?`Each meal must include "kidsAlt":{"name":"child-friendly dish","ingredients":["qty item"]} for ${prefs.kids} kids.`:'';
-      const dT='{"'+prefs.mealTypes.join('":M,"')+'":M}'.replace(/M(?=")/g,'{"name":"s","description":"8w","time":"Xm","estCost":0.00,"ingredients":["qty item","qty item"]'+kidsField+'}');
-      const dJ=sdays.map(d=>'"'+d.toLowerCase()+'":'+dT).join(',');
+      // Build schema explicitly — the old regex only matched M followed by " which broke single-meal-type rolls
+      const mealShape=`{"name":"meal name","description":"8 word description","time":"X min","estCost":0.00,"ingredients":["qty item"]${kidsField}}`;
+      const dT='{'+prefs.mealTypes.map(t=>`"${t}":${mealShape}`).join(',')+'}';
+      const dJ=sdays.map(d=>`"${d.toLowerCase()}":${dT}`).join(',');
       const raw=await callAI(
         `Meal plan. ONLY compact JSON, no whitespace.\n`+
         `Days:${sdays.map(d=>d.slice(0,3)).join(',')}|Types:${prefs.mealTypes.join(',')}|`+
@@ -786,11 +788,7 @@ Return ONLY JSON:{"steps":["Step 1 with exact timing, temp and technique...","St
       <div>
         {/* Hero */}
         <div className="land-hero">
-          <img src="/logo.png" alt="DishRoll" style={{width:72,height:'auto',margin:'0 auto 16px',display:'block'}}/>
-          <div style={{marginBottom:14,display:'flex',alignItems:'center',justifyContent:'center',gap:0}}>
-            <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:56,fontWeight:700,color:'#1a3a1a',letterSpacing:'-1px',lineHeight:1}}>Dish</span>
-            <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:56,fontWeight:700,color:'#c4622d',letterSpacing:'-1px',lineHeight:1}}>Roll</span>
-          </div>
+          <img src="/logo.png" alt="DishRoll" style={{width:130,height:'auto',margin:'0 auto 24px',display:'block'}}/>
           <div className="land-tagline">Weekly meal planning</div>
           <div className="land-h1">Know what's for<br/><em>dinner every night.</em></div>
           <p className="land-sub">Plan your week, generate a shopping list, and discover new recipes — all in one place.</p>
