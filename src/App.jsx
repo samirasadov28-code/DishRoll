@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.2.5";
+const APP_VERSION = "0.2.6";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -1112,7 +1112,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         {/* Discover more products */}
         <a
           className="modeloop-card"
-          href="https://modeloop.net"
+          href="http://modeloop.net/Other-Products"
           target="_blank"
           rel="noopener noreferrer"
           onClick={() => window.track && window.track("modeloop_click", { from: "landing" })}
