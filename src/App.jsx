@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.2.4";
+const APP_VERSION = "0.2.5";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -612,6 +612,15 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .btn-update{background:transparent;border:none;color:#8a9a7a;font-size:12px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:8px}
 .btn-update:hover{background:#f0ece0;color:#2a3a1a}
 
+/* modeloop link */
+.modeloop-card{background:#fff;border:1px solid #e0ddd0;border-radius:16px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;text-decoration:none;color:inherit;transition:all .2s}
+.modeloop-card:hover{border-color:#a0c090;transform:translateY(-1px);box-shadow:0 4px 12px rgba(30,60,20,.08)}
+.ml-left{display:flex;align-items:center;gap:13px;min-width:0}
+.ml-icon{width:42px;height:42px;background:linear-gradient(135deg,#1a4a2a,#2a6a3a);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;flex-shrink:0}
+.ml-title{font-size:14px;font-weight:600;color:#1a3a1a;margin-bottom:1px}
+.ml-sub{font-size:12px;color:#7a8a6a}
+.ml-arrow{font-size:18px;color:#a0c090;flex-shrink:0}
+
 /* week context bar */
 .wk-ctx{background:#f0f5e8;border-radius:10px;padding:9px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:13px;color:#1a3a1a;font-weight:600;border:1px solid #d8e4c0}
 
@@ -1099,6 +1108,24 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
             );
           })}
         </div>
+
+        {/* Discover more products */}
+        <a
+          className="modeloop-card"
+          href="https://modeloop.net"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => window.track && window.track("modeloop_click", { from: "landing" })}
+        >
+          <div className="ml-left">
+            <div className="ml-icon">✦</div>
+            <div>
+              <div className="ml-title">Discover more on ModeLoop</div>
+              <div className="ml-sub">Explore other products we're building</div>
+            </div>
+          </div>
+          <span className="ml-arrow">›</span>
+        </a>
 
         {/* Footer */}
         <div className="land-footer">
