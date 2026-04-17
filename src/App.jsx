@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.2.6";
+const APP_VERSION = "0.2.7";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -691,6 +691,9 @@ export default function App() {
   const [usage, setUsage]       = useState({ n: 0 });
   const [showPaywall, setShowPaywall] = useState(false);
   const [verifying, setVerifying]     = useState(false);
+  const [showManage, setShowManage]   = useState(false);
+  const [cancelStep, setCancelStep]   = useState("idle"); // idle | confirm | busy | done
+  const [cancelErr, setCancelErr]     = useState("");
 
   const sym    = CURRENCY[prefs.currency] || "€";
   const tsrv   = prefs.adults + (prefs.kidsDiff ? 0 : prefs.kids);
@@ -728,7 +731,7 @@ export default function App() {
       fetch("/.netlify/functions/verify", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ sessionId: sid }) })
         .then(r => r.json())
         .then(d => {
-          if (d.premium) { const pd = { email: d.email, id: d.customerId, until: d.validUntil }; saveP(pd); setPremium(pd); pop("🎉 Welcome to DishRoll Premium!"); }
+          if (d.premium) { const pd = { email: d.email, id: d.customerId, subId: d.subscriptionId, until: d.validUntil }; saveP(pd); setPremium(pd); pop("🎉 Welcome to DishRoll Premium!"); }
           else pop("Could not verify payment — contact support.");
         })
         .catch(() => pop("Could not verify. Try refreshing."))
@@ -944,6 +947,37 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
     window.location.href = "https://buy.stripe.com/dRmfZidobbBQeWZaIx2Ry02";
   }
 
+  function fmtDate(ms) {
+    if (!ms) return "—";
+    try { return new Date(ms).toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" }); }
+    catch { return "—"; }
+  }
+
+  async function cancelSubscription() {
+    if (!premium?.subId) {
+      setCancelErr("We couldn't find your subscription reference on this device. Please email support@dishroll.app from the email on your subscription and we'll cancel it for you.");
+      return;
+    }
+    setCancelStep("busy"); setCancelErr("");
+    track("subscription_cancel_attempt");
+    try {
+      const r = await fetch("/.netlify/functions/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscriptionId: premium.subId }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || "Cancel failed");
+      const pd = { ...premium, cancelled: true, cancelledAt: Date.now(), until: d.accessUntil || premium.until };
+      saveP(pd); setPremium(pd);
+      setCancelStep("done");
+      track("subscription_cancelled");
+    } catch (e) {
+      setCancelErr(e.message || "Something went wrong. Please try again or email support@dishroll.app.");
+      setCancelStep("confirm");
+    }
+  }
+
   // ─── MEAL CARD (with lazy thumbnail) ────────────────────────────────────────
   function MealCard({ meal, mt, k, isSel, isFav, cFlag, cuisine, onPick, onRecipe, onFav, onSwap, sym, costs, prefs, tsrv }) {
     const [imgSrc, setImgSrc] = useState(null);
@@ -1035,9 +1069,14 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
           <div className="plan-strip premium">
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.6)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 2 }}>✨ DishRoll Premium</div>
-              <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>Unlimited rolls · {premium?.email || "Active"}</div>
+              <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>
+                {premium?.cancelled
+                  ? <>Cancelled · access until {fmtDate(premium.until)}</>
+                  : <>Unlimited rolls · {premium?.email || "Active"}</>
+                }
+              </div>
             </div>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,.5)", cursor: "pointer", textDecoration: "underline" }} onClick={() => { clearP(); setPremium(null); pop("Premium removed from device."); }}>Remove</span>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,.75)", cursor: "pointer", textDecoration: "underline" }} onClick={() => { setCancelStep("idle"); setCancelErr(""); setShowManage(true); }}>Manage</span>
           </div>
         ) : (
           <div className="plan-strip free">
@@ -1270,6 +1309,82 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
           <button className="paywall-cta" onClick={startCheckout}>✨ Upgrade to Premium — {PRICE_MONTHLY}/month</button>
           <button className="paywall-skip" onClick={() => setShowPaywall(false)}>Maybe later</button>
           <div className="paywall-restore">Already subscribed? <span onClick={startCheckout}>Restore access</span></div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── MANAGE SUBSCRIPTION MODAL ──────────────────────────────────────────────
+  function ManageModal() {
+    if (!showManage) return null;
+    const close = () => { if (cancelStep !== "busy") setShowManage(false); };
+    const cancelled = !!premium?.cancelled;
+
+    return (
+      <div className="modal-overlay" onClick={close}>
+        <div className="modal-box" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+          <div className="modal-title">Manage Premium</div>
+
+          {cancelStep === "confirm" ? (
+            <>
+              <div style={{ fontSize: 14, color: "#3a4a2a", lineHeight: 1.6, marginBottom: 14 }}>
+                Your subscription will be cancelled and <strong>won't renew</strong>. You'll keep Premium access until{" "}
+                <strong>{fmtDate(premium?.until)}</strong>.
+              </div>
+              <div style={{ fontSize: 12, color: "#8a6a3a", background: "#fff6e8", border: "1px solid #f0d8a8", borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
+                ⚠ No refund will be issued for the current billing period.
+              </div>
+              {cancelErr && <div style={{ fontSize: 12, color: "#b04020", marginBottom: 10 }}>{cancelErr}</div>}
+              <button className="paywall-cta" style={{ background: "#b04020" }} onClick={cancelSubscription}>Yes, cancel subscription</button>
+              <button className="paywall-skip" onClick={() => setCancelStep("idle")}>Keep subscription</button>
+            </>
+          ) : cancelStep === "busy" ? (
+            <div style={{ padding: "20px 0", textAlign: "center" }}>
+              <div className="swap-loading-icon">⏳</div>
+              <div style={{ fontSize: 13, color: "#6a7a5a", marginTop: 10 }}>Cancelling your subscription…</div>
+            </div>
+          ) : cancelStep === "done" ? (
+            <>
+              <div style={{ fontSize: 14, color: "#2a6a3a", lineHeight: 1.6, marginBottom: 12 }}>
+                ✓ Your subscription has been cancelled.
+              </div>
+              <div style={{ fontSize: 13, color: "#3a4a2a", lineHeight: 1.6, marginBottom: 16 }}>
+                You'll keep Premium access until <strong>{fmtDate(premium?.until)}</strong>. No further charges will be made.
+              </div>
+              <button className="paywall-cta" onClick={() => { setShowManage(false); pop("Subscription cancelled."); }}>Done</button>
+            </>
+          ) : (
+            <>
+              <div style={{ background: "#f4f8ec", borderRadius: 12, padding: "12px 14px", marginBottom: 14, fontSize: 13, color: "#3a4a2a", lineHeight: 1.7 }}>
+                <div><span style={{ color: "#7a8a6a" }}>Email:</span> <strong>{premium?.email || "—"}</strong></div>
+                <div>
+                  <span style={{ color: "#7a8a6a" }}>Status:</span>{" "}
+                  <strong style={{ color: cancelled ? "#b06a20" : "#2a6a3a" }}>
+                    {cancelled ? "Cancelled" : "Active"}
+                  </strong>
+                </div>
+                <div>
+                  <span style={{ color: "#7a8a6a" }}>{cancelled ? "Access until:" : "Renews:"}</span>{" "}
+                  <strong>{fmtDate(premium?.until)}</strong>
+                </div>
+              </div>
+
+              {cancelErr && <div style={{ fontSize: 12, color: "#b04020", marginBottom: 10 }}>{cancelErr}</div>}
+
+              {!cancelled && (
+                <button className="paywall-cta" style={{ background: "#b04020" }} onClick={() => { setCancelErr(""); setCancelStep("confirm"); }}>
+                  Cancel subscription
+                </button>
+              )}
+              {cancelled && (
+                <button className="paywall-cta" onClick={startCheckout}>Resubscribe</button>
+              )}
+              <button className="paywall-skip" style={{ color: "#8a9a7a" }} onClick={() => { clearP(); setPremium(null); setShowManage(false); pop("Removed from this device."); }}>
+                Remove from this device only
+              </button>
+              <button className="paywall-skip" onClick={close}>Close</button>
+            </>
+          )}
         </div>
       </div>
     );
@@ -1720,6 +1835,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         <RecipeModal />
         <SwapModal />
         <PaywallModal />
+        <ManageModal />
         {showToast && <div className="toast">{toast}</div>}
       </div>
     </div>
