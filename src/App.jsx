@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.2.7";
+const APP_VERSION = "0.2.8";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -15,6 +15,26 @@ const CUISINE_FLAGS = {
   Moroccan:"🇲🇦", Lebanese:"🇱🇧", Vietnamese:"🇻🇳",
   Ukrainian:"🇺🇦", Azerbaijani:"🇦🇿",
 };
+
+// Fallback globe badge when cuisine is unknown — a styled SVG that matches the brand palette,
+// rendered sharper and more premium than the default 🌍 emoji.
+const GlobeBadge = () => (
+  <svg viewBox="0 0 20 20" width="16" height="16" style={{ display: "block" }} aria-label="Varied cuisine" role="img">
+    <defs>
+      <radialGradient id="drGlobeG" cx="35%" cy="30%" r="75%">
+        <stop offset="0%" stopColor="#9dc7d9" />
+        <stop offset="60%" stopColor="#4e88a3" />
+        <stop offset="100%" stopColor="#224a60" />
+      </radialGradient>
+    </defs>
+    <circle cx="10" cy="10" r="9" fill="url(#drGlobeG)" />
+    <path d="M1 10 H19 M10 1 V19 M3 5 Q10 7 17 5 M3 15 Q10 13 17 15" stroke="#ffffff" strokeWidth="0.6" fill="none" opacity="0.55" />
+    <ellipse cx="10" cy="10" rx="4.2" ry="9" fill="none" stroke="#ffffff" strokeWidth="0.6" opacity="0.55" />
+    <path d="M6 7 q1.5 -1 3 -0.3 t2.5 0.5 q1 0.6 1.5 1.8 M4.5 11 q1.8 0.4 3.3 1.2 t3.2 0.4 q1.2 -0.3 2.5 -1.2" fill="#2a6a3a" stroke="#1a4a2a" strokeWidth="0.3" opacity="0.9" />
+    <circle cx="6.5" cy="6.5" r="1.8" fill="#3a7a3a" opacity="0.85" />
+    <circle cx="13" cy="12" r="1.4" fill="#3a7a3a" opacity="0.85" />
+  </svg>
+);
 
 // Detect which cuisine a meal belongs to based on its name/description
 function detectCuisine(name="", desc="") {
@@ -76,7 +96,7 @@ function calKeys(ck, past = 6) {
 }
 
 // ─── STORAGE ──────────────────────────────────────────────────────────────────
-const WP = "dr-week-", FK = "dr-favs", PK = "dr-premium", UK = "dr-usage";
+const WP = "dr-week-", FK = "dr-favs", PK = "dr-premium", UK = "dr-usage", OK = "dr-onboarded";
 const saveWk = (k, d) => { try { localStorage.setItem(WP+k, JSON.stringify({ ...d, at: Date.now() })); } catch {} };
 const loadWk = k => { try { const s = localStorage.getItem(WP+k); return s ? JSON.parse(s) : null; } catch { return null; } };
 const delWk  = k => { try { localStorage.removeItem(WP+k); } catch {} };
@@ -161,7 +181,29 @@ const PHOTO_MAP = {
   vegetarian:"https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=640&q=80",
   default:"https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=640&q=80",
 };
-function photoFallback(name = "", mt = "") {
+// Map a single-word main-ingredient token (e.g. from AI mainIngredient field) → photo key
+const MAIN_ING_MAP = {
+  chicken:"chicken", poultry:"chicken", turkey:"chicken", duck:"chicken",
+  beef:"beef", steak:"beef", veal:"beef", mince:"beef",
+  lamb:"lamb", mutton:"lamb",
+  pork:"pork", bacon:"pork", ham:"pork", sausage:"pork",
+  salmon:"fish", tuna:"fish", cod:"fish", haddock:"fish", mackerel:"fish", trout:"fish", fish:"fish",
+  shrimp:"seafood", prawn:"seafood", prawns:"seafood", lobster:"seafood", crab:"seafood", scallop:"seafood", seafood:"seafood", mussels:"seafood",
+  pasta:"pasta", spaghetti:"pasta", penne:"pasta", linguine:"pasta", noodles:"noodle", ramen:"noodle", udon:"noodle", soba:"noodle",
+  rice:"rice", risotto:"rice", biryani:"rice", paella:"rice", quinoa:"rice",
+  bread:"bread", sandwich:"bread", wrap:"bread", tortilla:"bread",
+  egg:"egg", eggs:"egg",
+  tofu:"vegetarian", tempeh:"vegetarian", seitan:"vegetarian",
+  lentils:"vegetarian", lentil:"vegetarian", chickpeas:"vegetarian", chickpea:"vegetarian", beans:"vegetarian", bean:"vegetarian",
+  potato:"vegetarian", potatoes:"vegetarian", sweetpotato:"vegetarian",
+  vegetables:"vegetarian", vegetable:"vegetarian", veggie:"vegetarian", mushroom:"vegetarian", mushrooms:"vegetarian", cauliflower:"vegetarian", broccoli:"vegetarian", aubergine:"vegetarian", courgette:"vegetarian", squash:"vegetarian",
+};
+function photoFallback(name = "", mt = "", mainIngredient = "") {
+  // If AI gave us a main ingredient, trust it first — this is the most reliable signal.
+  if (mainIngredient) {
+    const key = MAIN_ING_MAP[String(mainIngredient).toLowerCase().replace(/[^a-z]/g, "")];
+    if (key && PHOTO_MAP[key]) return PHOTO_MAP[key];
+  }
   const n = name.toLowerCase();
   // Proteins first — these are always the right visual anchor
   if (n.includes("chicken")||n.includes("turkey")||n.includes("duck")||n.includes("parmesan")||n.includes("parmigiana")) return PHOTO_MAP.chicken;
@@ -194,7 +236,7 @@ function photoFallback(name = "", mt = "") {
 // 2. TheMealDB — each meaningful word in dish name (ingredient-level)
 // 3. TheMealDB — first ingredient from meal
 // 4. Guaranteed Unsplash curated fallback
-async function fetchPhoto(name, mt, ingredients) {
+async function fetchPhoto(name, mt, ingredients, mainIngredient) {
   const tryProxy = async (q) => {
     try {
       const r = await fetch("/.netlify/functions/photo?q=" + encodeURIComponent(q));
@@ -203,9 +245,9 @@ async function fetchPhoto(name, mt, ingredients) {
     return null;
   };
 
-  // Pre-check: does our local keyword map give a SPECIFIC result (not the generic default)?
+  // Pre-check: does our local keyword map (or AI mainIngredient) give a SPECIFIC result?
   // If yes, this is our confident fallback — better than a random wrong API result.
-  const localMatch = photoFallback(name, mt);
+  const localMatch = photoFallback(name, mt, mainIngredient);
   const hasSpecificLocal = localMatch !== PHOTO_MAP.default;
 
   // Tier 1: TheMealDB full dish name match
@@ -621,6 +663,21 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .ml-sub{font-size:12px;color:#7a8a6a}
 .ml-arrow{font-size:18px;color:#a0c090;flex-shrink:0}
 
+/* feedback floating button */
+.fb-fab{position:fixed;right:16px;bottom:18px;z-index:400;background:linear-gradient(135deg,#1a4a2a,#2a6a3a);color:#fff;border:none;padding:10px 16px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;display:inline-flex;align-items:center;gap:6px;box-shadow:0 6px 18px rgba(26,74,42,.28);transition:all .2s}
+.fb-fab:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(26,74,42,.35)}
+.fb-ta{width:100%;min-height:110px;padding:10px 12px;border:1.5px solid #d0ccb8;border-radius:10px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:#1a3a1a;background:#fff;resize:vertical;box-sizing:border-box}
+.fb-ta:focus{outline:none;border-color:#2a6a3a}
+.fb-email{width:100%;padding:9px 12px;border:1.5px solid #d0ccb8;border-radius:10px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:#1a3a1a;background:#fff;box-sizing:border-box;margin-top:10px}
+.fb-email:focus{outline:none;border-color:#2a6a3a}
+
+/* onboarding highlights */
+.ob-hl{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f0ece0}
+.ob-hl:last-child{border-bottom:none}
+.ob-icon{width:36px;height:36px;border-radius:10px;background:#f0f5e8;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.ob-title{font-size:14px;font-weight:600;color:#1a3a1a;margin-bottom:2px}
+.ob-sub{font-size:12px;color:#6a7a5a;line-height:1.5}
+
 /* week context bar */
 .wk-ctx{background:#f0f5e8;border-radius:10px;padding:9px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:13px;color:#1a3a1a;font-weight:600;border:1px solid #d8e4c0}
 
@@ -694,6 +751,12 @@ export default function App() {
   const [showManage, setShowManage]   = useState(false);
   const [cancelStep, setCancelStep]   = useState("idle"); // idle | confirm | busy | done
   const [cancelErr, setCancelErr]     = useState("");
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [fbText, setFbText]   = useState("");
+  const [fbEmail, setFbEmail] = useState("");
+  const [fbState, setFbState] = useState("idle"); // idle | busy | done | error
+  const [fbErr, setFbErr]     = useState("");
+  const [showOnboard, setShowOnboard] = useState(false);
 
   const sym    = CURRENCY[prefs.currency] || "€";
   const tsrv   = prefs.adults + (prefs.kidsDiff ? 0 : prefs.kids);
@@ -716,6 +779,7 @@ export default function App() {
   // boot
   useEffect(() => {
     try { const s = localStorage.getItem(FK); if (s) setFavs(JSON.parse(s)); } catch {}
+    try { if (!localStorage.getItem(OK)) setShowOnboard(true); } catch {}
     const p = loadP(); setPremium(p);
     setUsage(loadU());
     const params = new URLSearchParams(window.location.search);
@@ -818,15 +882,18 @@ export default function App() {
       const cn = prefs.complexity === "simple" ? "Prefer quick easy dishes under 30 minutes." : prefs.complexity === "elaborate" ? "Include impressive multi-step recipes." : "";
       const kf = prefs.kids > 0 && prefs.kidsDiff ? `,"kidsAlt":{"name":"kids dish name","ingredients":["qty item"]}` : "";
       const kn = prefs.kids > 0 && prefs.kidsDiff ? `Each meal must include "kidsAlt":{"name":"child-friendly dish","ingredients":["qty item"]} for ${prefs.kids} kids, mild and simple.` : "";
-      const mealShape = `{"name":"meal name","description":"First sentence about key ingredients and cooking method. Second sentence about flavour profile or why it works.","time":"X min","estCost":0.00,"ingredients":["qty item"]${kf}}`;
+      const mealShape = `{"name":"meal name","mainIngredient":"single-word primary protein or base e.g. chicken|beef|salmon|tofu|pasta|rice|lentils","description":"First sentence about key ingredients and cooking method. Second sentence about flavour profile or why it works.","time":"X min","estCost":0.00,"ingredients":["qty item"]${kf}}`;
       const daySchema = `{${prefs.types.map(t => `"${t}":${mealShape}`).join(",")}}`;
       const dJ = selDays.map(d => `"${d.toLowerCase()}":${daySchema}`).join(",");
+      const varietyCap = Math.max(2, Math.ceil(selDays.length / 3));
+      const varietyRule = `VARIETY:No single "mainIngredient" may appear more than ${varietyCap} times across the whole plan. Rotate proteins (chicken,beef,fish,pork,lamb,tofu,lentils,chickpeas,eggs) and bases (pasta,rice,noodles,bread,potato) so no ingredient dominates.`;
       const raw = await callAI(
         `Generate a meal plan. Return ONLY valid compact JSON, no whitespace.\n` +
         `Days:${selDays.map(d => d.slice(0,3)).join(",")}|Types:${prefs.types.join(",")}|` +
         `Cuisines:${prefs.cuisines.length ? prefs.cuisines.join(",") : "varied"}|` +
         `Dietary:${prefs.dietary.length ? prefs.dietary.join(",") : "none"}|` +
         `Adventure:${prefs.adventure}%|Servings:${tsrv}|Favs:${fh || "none"}|${bn}${cn}${kn}\n` +
+        `${varietyRule}\n` +
         `Return:{${dJ}}`,
         4000
       );
@@ -911,7 +978,7 @@ export default function App() {
     track("recipe_opened", { meal: meal.name, type: isKids ? "kids" : "adult", mt });
     setRecipe({ meal, mt, variant, steps: [], tip: "", prepTime: "", cookTime: "", difficulty: "", photoUrl: null, photoLd: true, stepsLd: true });
     // Photo: always resolves to something (guaranteed fallback in fetchPhoto)
-    fetchPhoto(meal.name, mt).then(url => setRecipe(p => p ? { ...p, photoUrl: url || photoFallback(meal.name, mt), photoLd: false } : null));
+    fetchPhoto(meal.name, mt, meal.ingredients, meal.mainIngredient).then(url => setRecipe(p => p ? { ...p, photoUrl: url || photoFallback(meal.name, mt, meal.mainIngredient), photoLd: false } : null));
     // Recipe: detailed prompt with retry on failure
     const srv = isKids ? prefs.kids : tsrv;
     const prompt = isKids
@@ -953,6 +1020,34 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
     catch { return "—"; }
   }
 
+  async function sendFeedback() {
+    const text = fbText.trim();
+    if (!text) { setFbErr("Please enter some feedback first."); return; }
+    setFbState("busy"); setFbErr("");
+    track("feedback_submitted", { length: text.length, hasEmail: !!fbEmail.trim() });
+    try {
+      const r = await fetch("/.netlify/functions/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          feedback: text,
+          email: fbEmail.trim() || null,
+          meta: { version: APP_VERSION, path: window.location.pathname },
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) throw new Error(d.error || "Send failed");
+      setFbState("done");
+      setTimeout(() => {
+        setShowFeedback(false);
+        setFbText(""); setFbEmail(""); setFbState("idle");
+      }, 1800);
+    } catch (e) {
+      setFbErr(e.message || "Could not send — please try again later.");
+      setFbState("idle");
+    }
+  }
+
   async function cancelSubscription() {
     if (!premium?.subId) {
       setCancelErr("We couldn't find your subscription reference on this device. Please email support@dishroll.app from the email on your subscription and we'll cancel it for you.");
@@ -984,8 +1079,8 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
     const [imgErr, setImgErr] = useState(false);
     useEffect(() => {
       let alive = true;
-      fetchPhoto(meal.name, mt, meal.ingredients).then(url => {
-        if (alive) setImgSrc(url || photoFallback(meal.name, mt));
+      fetchPhoto(meal.name, mt, meal.ingredients, meal.mainIngredient).then(url => {
+        if (alive) setImgSrc(url || photoFallback(meal.name, mt, meal.mainIngredient));
       });
       return () => { alive = false; };
     }, [meal.name, mt]);
@@ -1135,7 +1230,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                   {(() => { const m = new Date(key + "T00:00:00"); const s2 = new Date(m); s2.setDate(m.getDate() + 6); const f = d2 => d2.toLocaleDateString("en-IE", { day: "numeric", month: "short" }); return `${f(m)} – ${f(s2)}`; })()}
                 </div>
                 {d && s.length > 0 && <div className="wk-meals">{s.map((n, i) => <div key={i} className="wk-meal">{n}</div>)}</div>}
-                {!d && <div className="wk-empty-txt">{isF ? "Plan ahead" : "No plan yet"}</div>}
+                {!d && <div className="wk-empty-txt">{isF ? "Plan ahead · skip impulse buys" : "Tap to plan"}</div>}
                 <div className="wk-acts" onClick={e => e.stopPropagation()}>
                   {d && <button className="wk-btn pri" onClick={() => openPlan(key)}>Open</button>}
                   {d?.sl && <button className="wk-btn" onClick={() => openList(key)}>List</button>}
@@ -1385,6 +1480,97 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
               <button className="paywall-skip" onClick={close}>Close</button>
             </>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── FEEDBACK MODAL ─────────────────────────────────────────────────────────
+  function FeedbackModal() {
+    if (!showFeedback) return null;
+    const close = () => { if (fbState !== "busy") { setShowFeedback(false); setFbErr(""); } };
+    return (
+      <div className="modal-overlay" onClick={close}>
+        <div className="modal-box" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+          <div className="modal-title">Send feedback</div>
+          {fbState === "done" ? (
+            <div style={{ padding: "24px 0", textAlign: "center" }}>
+              <div style={{ fontSize: 30, marginBottom: 8 }}>🙏</div>
+              <div style={{ fontSize: 14, color: "#2a6a3a", fontWeight: 600 }}>Thanks — we've got your feedback.</div>
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 13, color: "#5a6a4a", lineHeight: 1.6, marginBottom: 12 }}>
+                Love something, found a bug, have an idea? Tell us — we read everything.
+              </div>
+              <textarea
+                className="fb-ta"
+                placeholder="What's on your mind?"
+                value={fbText}
+                onChange={e => setFbText(e.target.value)}
+                maxLength={4000}
+                disabled={fbState === "busy"}
+              />
+              <input
+                className="fb-email"
+                type="email"
+                placeholder="Your email (optional — for a reply)"
+                value={fbEmail}
+                onChange={e => setFbEmail(e.target.value)}
+                disabled={fbState === "busy"}
+              />
+              {fbErr && <div style={{ fontSize: 12, color: "#b04020", marginTop: 10 }}>{fbErr}</div>}
+              <button className="paywall-cta" style={{ marginTop: 14 }} onClick={sendFeedback} disabled={fbState === "busy" || !fbText.trim()}>
+                {fbState === "busy" ? "Sending…" : "Send feedback"}
+              </button>
+              <button className="paywall-skip" onClick={close} disabled={fbState === "busy"}>Cancel</button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── ONBOARDING MODAL ───────────────────────────────────────────────────────
+  function OnboardingModal() {
+    if (!showOnboard) return null;
+    const dismiss = () => {
+      try { localStorage.setItem(OK, "1"); } catch {}
+      setShowOnboard(false);
+      track("onboarding_dismissed");
+    };
+    return (
+      <div className="modal-overlay" onClick={dismiss}>
+        <div className="modal-box" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+          <div style={{ textAlign: "center", marginBottom: 14 }}>
+            <img src="/logo.png" alt="DishRoll" style={{ width: 72, height: "auto", margin: "0 auto 8px", display: "block" }} />
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, fontWeight: 600, color: "#1a3a1a" }}>
+              Welcome to DishRoll
+            </div>
+            <div style={{ fontSize: 13, color: "#6a7a5a" }}>Roll your week. Eat well.</div>
+          </div>
+          <div className="ob-hl">
+            <div className="ob-icon">🎲</div>
+            <div>
+              <div className="ob-title">Roll a full week in seconds</div>
+              <div className="ob-sub">Pick your days and cuisines — we'll plan the meals with variety built in.</div>
+            </div>
+          </div>
+          <div className="ob-hl">
+            <div className="ob-icon">🛒</div>
+            <div>
+              <div className="ob-title">One-tap shopping list</div>
+              <div className="ob-sub">Every meal turns into a categorised list. Tick as you shop.</div>
+            </div>
+          </div>
+          <div className="ob-hl">
+            <div className="ob-icon">👩‍🍳</div>
+            <div>
+              <div className="ob-title">Recipes when you need them</div>
+              <div className="ob-sub">Tap any meal card to get step-by-step cooking — plus kids alternatives.</div>
+            </div>
+          </div>
+          <button className="paywall-cta" style={{ marginTop: 18 }} onClick={dismiss}>Let's roll</button>
         </div>
       </div>
     );
@@ -1752,7 +1938,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                         const k = `${day.toLowerCase()}-${mt}`;
                         const isSel = picked.has(k), isFav = favs.includes(m.name);
                         const cuisine = detectCuisine(m.name, m.description||"");
-                        const cFlag = cuisine ? (CUISINE_FLAGS[cuisine]||"🌍") : "🌍";
+                        const cFlag = cuisine && CUISINE_FLAGS[cuisine] ? CUISINE_FLAGS[cuisine] : <GlobeBadge />;
                         // Kids alt
                         const ka = m.kidsAlt;
                         const kname = ka && typeof ka==="object" ? ka.name : ka;
@@ -1836,6 +2022,14 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         <SwapModal />
         <PaywallModal />
         <ManageModal />
+        <FeedbackModal />
+        <OnboardingModal />
+
+        {/* Floating feedback button */}
+        <button className="fb-fab" onClick={() => { setFbErr(""); setFbState("idle"); setShowFeedback(true); track("feedback_opened"); }} aria-label="Send feedback">
+          💬 Feedback
+        </button>
+
         {showToast && <div className="toast">{toast}</div>}
       </div>
     </div>
