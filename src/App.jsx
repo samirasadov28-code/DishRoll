@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.2.8";
+const APP_VERSION = "0.2.9";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -67,6 +67,18 @@ const COMPLEXITY = [
   { id:"simple",    label:"🥗 Simple",    sub:"Under 30 min, few ingredients" },
   { id:"any",       label:"⚖️ Any",        sub:"Mix of simple and elaborate" },
   { id:"elaborate", label:"👨‍🍳 Elaborate",  sub:"Impressive multi-step recipes" },
+];
+const LANGUAGES = [
+  { code:"en", label:"English", flag:"🇬🇧" },
+  { code:"es", label:"Español", flag:"🇪🇸" },
+  { code:"fr", label:"Français", flag:"🇫🇷" },
+  { code:"de", label:"Deutsch", flag:"🇩🇪" },
+  { code:"it", label:"Italiano", flag:"🇮🇹" },
+  { code:"pt", label:"Português", flag:"🇵🇹" },
+  { code:"nl", label:"Nederlands", flag:"🇳🇱" },
+  { code:"pl", label:"Polski", flag:"🇵🇱" },
+  { code:"uk", label:"Українська", flag:"🇺🇦" },
+  { code:"az", label:"Azərbaycanca", flag:"🇦🇿" },
 ];
 
 // ─── WEEK HELPERS ─────────────────────────────────────────────────────────────
@@ -296,6 +308,7 @@ const DPREFS = {
   favMeals: [], favInput: "", cusInput: "",
   adults: 2, kids: 0, kidsDiff: false,
   currency: "EUR", budget: "", budgetOn: false,
+  lang: "en",
 };
 
 // ─── FONTS + CSS ──────────────────────────────────────────────────────────────
@@ -887,6 +900,8 @@ export default function App() {
       const dJ = selDays.map(d => `"${d.toLowerCase()}":${daySchema}`).join(",");
       const varietyCap = Math.max(2, Math.ceil(selDays.length / 3));
       const varietyRule = `VARIETY:No single "mainIngredient" may appear more than ${varietyCap} times across the whole plan. Rotate proteins (chicken,beef,fish,pork,lamb,tofu,lentils,chickpeas,eggs) and bases (pasta,rice,noodles,bread,potato) so no ingredient dominates.`;
+      const langObj = LANGUAGES.find(l => l.code === (prefs.lang || "en"));
+      const langLine = langObj && langObj.code !== "en" ? `Language:Write all meal names, descriptions and ingredient names in ${langObj.label}.\n` : "";
       const raw = await callAI(
         `Generate a meal plan. Return ONLY valid compact JSON, no whitespace.\n` +
         `Days:${selDays.map(d => d.slice(0,3)).join(",")}|Types:${prefs.types.join(",")}|` +
@@ -894,6 +909,7 @@ export default function App() {
         `Dietary:${prefs.dietary.length ? prefs.dietary.join(",") : "none"}|` +
         `Adventure:${prefs.adventure}%|Servings:${tsrv}|Favs:${fh || "none"}|${bn}${cn}${kn}\n` +
         `${varietyRule}\n` +
+        `${langLine}` +
         `Return:{${dJ}}`,
         4000
       );
@@ -914,8 +930,10 @@ export default function App() {
     const cur = plan?.[day.toLowerCase()]?.[mt]; if (!cur) return;
     setSwap({ day, mt }); setSwapLd(true); setSwapOpts([]);
     try {
+      const swapLangObj = LANGUAGES.find(l => l.code === (prefs.lang || "en"));
+      const swapLangLine = swapLangObj && swapLangObj.code !== "en" ? ` Write all output in ${swapLangObj.label}.` : "";
       const raw = await callAI(
-        `3 alternative ${mt} recipes to replace "${cur.name}". Cuisines:${prefs.cuisines.join(",") || "any"}. Dietary:${prefs.dietary.join(",") || "none"}. Complexity:${prefs.complexity}. Servings:${tsrv}.\n` +
+        `3 alternative ${mt} recipes to replace "${cur.name}". Cuisines:${prefs.cuisines.join(",") || "any"}. Dietary:${prefs.dietary.join(",") || "none"}. Complexity:${prefs.complexity}. Servings:${tsrv}.${swapLangLine}\n` +
         `Return ONLY JSON array:[{"name":"...","description":"Two sentences: ingredients/method then flavour profile.","time":"X min","estCost":0.00,"ingredients":["qty item"]},...]`,
         1200
       );
@@ -1075,15 +1093,22 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
 
   // ─── MEAL CARD (with lazy thumbnail) ────────────────────────────────────────
   function MealCard({ meal, mt, k, isSel, isFav, cFlag, cuisine, onPick, onRecipe, onFav, onSwap, sym, costs, prefs, tsrv }) {
-    const [imgSrc, setImgSrc] = useState(null);
-    const [imgErr, setImgErr] = useState(false);
+    const [imgSrc, setImgSrc] = useState(() => photoFallback(meal.name, mt, meal.mainIngredient));
+    const [imgDead, setImgDead] = useState(false);
     useEffect(() => {
+      const fb = photoFallback(meal.name, mt, meal.mainIngredient);
+      setImgSrc(fb);
+      setImgDead(false);
       let alive = true;
       fetchPhoto(meal.name, mt, meal.ingredients, meal.mainIngredient).then(url => {
-        if (alive) setImgSrc(url || photoFallback(meal.name, mt, meal.mainIngredient));
+        if (alive && url && url !== fb) setImgSrc(url);
       });
       return () => { alive = false; };
     }, [meal.name, mt]);
+    const handleImgErr = () => {
+      if (imgSrc !== PHOTO_MAP.default) { setImgSrc(PHOTO_MAP.default); }
+      else { setImgDead(true); }
+    };
 
     // Ensure proper spacing in meal name (guard against AI-generated camelCase or missing spaces)
     const displayName = meal.name
@@ -1097,8 +1122,8 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         <div className="meal-card-top">
           {/* Photo box with flag overlay */}
           <div className="meal-card-img-box">
-            {!imgErr && imgSrc
-              ? <img src={imgSrc} alt={displayName} className="meal-card-thumb" onError={()=>setImgErr(true)} />
+            {!imgDead && imgSrc
+              ? <img src={imgSrc} alt={displayName} className="meal-card-thumb" onError={handleImgErr} />
               : <div className="meal-card-thumb-blank" />
             }
             {/* Flag always shown as overlay badge */}
@@ -1790,7 +1815,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
           {step === "vibe" && (
             <div>
               <div className="page-title">Your culinary<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>personality</span></div>
-              <p className="page-sub">Set your adventure level, complexity, and any must-have meals.</p>
+              <p className="page-sub">Set your adventure level, complexity, language, and any must-have meals.</p>
               <div className="card">
                 <div className="label">Adventure level</div>
                 <input type="range" min={0} max={100} value={prefs.adventure} onChange={e => sp("adventure", +e.target.value)} className="slider" />
@@ -1799,6 +1824,17 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
               <div className="card">
                 <div className="label">Dish complexity</div>
                 <div className="cx-grid">{COMPLEXITY.map(o => <div key={o.id} className={`cx-card${prefs.complexity === o.id ? " sel" : ""}`} onClick={() => sp("complexity", o.id)}><div className="cx-label">{o.label}</div><div className="cx-sub">{o.sub}</div></div>)}</div>
+              </div>
+              <div className="card">
+                <div className="label">Recipe language</div>
+                <p className="hint">Meal names and descriptions will be in the language you choose.</p>
+                <div className="chip-group">
+                  {LANGUAGES.map(l => (
+                    <div key={l.code} className={`chip${prefs.lang === l.code ? " sel" : ""}`} onClick={() => sp("lang", l.code)}>
+                      {l.flag} {l.label}
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="card">
                 <div className="label">Lock in favourites (optional)</div>
@@ -2022,7 +2058,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         <SwapModal />
         <PaywallModal />
         <ManageModal />
-        <FeedbackModal />
+        {FeedbackModal()}
         <OnboardingModal />
 
         {/* Floating feedback button */}
