@@ -1,7 +1,10 @@
 // DishRoll — feedback endpoint
 // POST { feedback, email?, meta? } → 200 { ok: true }
-// Logs to Netlify function logs; if FEEDBACK_WEBHOOK_URL env var is set, also POSTs there
-// (compatible with Zapier, Slack webhooks, Discord webhooks, custom endpoints).
+//
+// Env vars (all optional):
+//   FEEDBACK_EMAIL_TO   — your inbox, e.g. you@gmail.com
+//   FEEDBACK_RESEND_KEY — API key from resend.com (free tier: 3 000 emails/month)
+//   FEEDBACK_WEBHOOK_URL — any webhook (Zapier / Slack / Discord / custom)
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -35,8 +38,45 @@ exports.handler = async (event) => {
   // Always log to Netlify function logs (visible in dashboard)
   console.log('[dishroll-feedback]', JSON.stringify(record));
 
+  const { FEEDBACK_EMAIL_TO, FEEDBACK_RESEND_KEY, FEEDBACK_WEBHOOK_URL } = process.env;
+
+  // Email notification via Resend (resend.com — free tier covers 3 000 emails/month)
+  if (FEEDBACK_EMAIL_TO && FEEDBACK_RESEND_KEY) {
+    try {
+      const fromUser = email ? `${email}` : 'anonymous';
+      const subject = `DishRoll feedback from ${fromUser}`;
+      const text = [
+        `From: ${email || 'anonymous'}`,
+        `Version: ${record.version || '?'}`,
+        `Time: ${record.ts}`,
+        '',
+        feedback,
+        '',
+        `---`,
+        `Path: ${record.path || '/'}`,
+        `UA: ${record.ua || '?'}`,
+      ].join('\n');
+
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${FEEDBACK_RESEND_KEY}`,
+        },
+        body: JSON.stringify({
+          from: 'DishRoll Feedback <feedback@dishroll.app>',
+          to: [FEEDBACK_EMAIL_TO],
+          reply_to: email || undefined,
+          subject,
+          text,
+        }),
+      });
+    } catch (err) {
+      console.warn('[dishroll-feedback] email failed:', err.message);
+    }
+  }
+
   // Optional: forward to any webhook (Zapier / Slack / Discord / custom)
-  const { FEEDBACK_WEBHOOK_URL } = process.env;
   if (FEEDBACK_WEBHOOK_URL) {
     try {
       await fetch(FEEDBACK_WEBHOOK_URL, {
