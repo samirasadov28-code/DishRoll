@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.3.7";
+const APP_VERSION = "0.3.8";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -92,32 +92,36 @@ function langPrefix(lang) {
   if (!lang || lang === "en") return "";
   return `Translate to ${LANG_EN[lang] || lang}: the "name" field, "description" field, and all strings in "ingredients" arrays. Keep JSON keys and "mainIngredient" values in English.\n`;
 }
-async function translateMeal(meal, langName) {
-  if (!meal || !langName) return meal;
-  const src = { name: meal.name, description: meal.description || "", ingredients: meal.ingredients || [] };
-  const raw = await callAI(
-    `Translate to ${langName}. Return ONLY this JSON with translated string values:\n${JSON.stringify(src)}`,
-    700
-  );
-  const tr = JSON.parse(raw);
-  return {
-    ...meal,
-    ...(tr.name && { name: tr.name }),
-    ...(tr.description && { description: tr.description }),
-    ...(Array.isArray(tr.ingredients) && tr.ingredients.length && { ingredients: tr.ingredients }),
-  };
-}
 async function translateMealPlan(plan, lang, selDays, types) {
   const langName = LANG_EN[lang];
   if (!langName) return plan;
-  const result = JSON.parse(JSON.stringify(plan));
-  const jobs = [];
+  const refs = [];
+  const meals = [];
   selDays.forEach(d => types.forEach(t => {
-    const meal = result[d.toLowerCase()]?.[t];
-    if (meal) jobs.push({ d: d.toLowerCase(), t, p: translateMeal(meal, langName).catch(() => meal) });
+    const m = plan[d.toLowerCase()]?.[t];
+    if (m) {
+      refs.push({ d: d.toLowerCase(), t });
+      meals.push({ name: m.name, description: m.description || "", ingredients: m.ingredients || [] });
+    }
   }));
-  const results = await Promise.all(jobs.map(j => j.p));
-  jobs.forEach(({ d, t }, i) => { if (result[d]?.[t]) result[d][t] = results[i]; });
+  if (!meals.length) return plan;
+  const raw = await callAI(
+    `Translate every string value to ${langName}. Return ONLY a JSON array with the same length and structure:\n${JSON.stringify(meals)}`,
+    4000
+  );
+  let translated;
+  try { translated = JSON.parse(raw); } catch { return plan; }
+  if (!Array.isArray(translated) || translated.length !== meals.length) return plan;
+  const result = JSON.parse(JSON.stringify(plan));
+  refs.forEach(({ d, t }, i) => {
+    const meal = result[d]?.[t];
+    const tr = translated[i];
+    if (meal && tr) {
+      if (tr.name) meal.name = tr.name;
+      if (tr.description) meal.description = tr.description;
+      if (Array.isArray(tr.ingredients) && tr.ingredients.length) meal.ingredients = tr.ingredients;
+    }
+  });
   return result;
 }
 
@@ -781,7 +785,9 @@ export default function App() {
   const [prefs, setPrefs]   = useState({ ...DPREFS });
 
   // plan data
-  const [plan, setPlan]     = useState(null);
+  const [plan, setPlan]         = useState(null);
+  const [englishPlan, setEnglishPlan] = useState(null); // always the English original for re-translation
+  const [translating, setTranslating] = useState(false);
   const [costs, setCosts]   = useState({});
   const [sl, setSl]         = useState(null);        // shopping list
   const [ticked, setTicked] = useState(new Set());   // checked items
@@ -963,7 +969,7 @@ export default function App() {
       let p2 = JSON.parse(raw);
       const anyMeal = selDays.some(d => { const day = p2[d.toLowerCase()]; return day && prefs.types.some(t => day[t]?.name); });
       if (!anyMeal) throw new Error("No meals returned — please try again.");
-      // Two-step translation: generate in English first, then translate text fields
+      setEnglishPlan(p2); // always keep the English original for re-translation
       if (prefs.lang && prefs.lang !== "en") {
         try { p2 = await translateMealPlan(p2, prefs.lang, selDays, prefs.types); } catch {}
       }
@@ -990,7 +996,14 @@ export default function App() {
       if (prefs.lang && prefs.lang !== "en") {
         try {
           const langName = LANG_EN[prefs.lang];
-          if (langName) opts = await Promise.all(opts.map(o => translateMeal(o, langName).catch(() => o)));
+          if (langName) {
+            const src = opts.map(o => ({ name: o.name, description: o.description || "", ingredients: o.ingredients || [] }));
+            const raw2 = await callAI(`Translate every string value to ${langName}. Return ONLY a JSON array with the same length and structure:\n${JSON.stringify(src)}`, 1500);
+            const tr = JSON.parse(raw2);
+            if (Array.isArray(tr) && tr.length === opts.length) {
+              opts = opts.map((o, i) => ({ ...o, ...(tr[i].name && { name: tr[i].name }), ...(tr[i].description && { description: tr[i].description }), ...(Array.isArray(tr[i].ingredients) && tr[i].ingredients.length && { ingredients: tr[i].ingredients }) }));
+            }
+          }
         } catch {}
       }
       setSwapOpts(opts);
@@ -1752,13 +1765,29 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
             <div className="lang-wrap">
               {showLangDrop && <div style={{position:"fixed",inset:0,zIndex:199}} onClick={() => setShowLangDrop(false)} />}
               <button className="lang-btn" onClick={() => setShowLangDrop(v => !v)}>
-                {(() => { const l = LANGUAGES.find(x => x.code === (prefs.lang || "en")) || LANGUAGES[0]; return (<>{l.flag ? <span>{l.flag}</span> : <span style={{fontWeight:800,fontSize:11}}>RU</span>}<span className="lang-code">{l.code.toUpperCase()}</span></>); })()}
+                {translating
+                  ? <span style={{fontSize:11,opacity:.8}}>…</span>
+                  : (() => { const l = LANGUAGES.find(x => x.code === (prefs.lang || "en")) || LANGUAGES[0]; return (<>{l.flag ? <span>{l.flag}</span> : <span style={{fontWeight:800,fontSize:11}}>RU</span>}<span className="lang-code">{l.code.toUpperCase()}</span></>); })()
+                }
               </button>
               {showLangDrop && (
                 <div className="lang-drop">
                   {LANGUAGES.map(l => (
                     <div key={l.code} className={`lang-opt${prefs.lang === l.code ? " active" : ""}`}
-                      onClick={() => { sp("lang", l.code); setShowLangDrop(false); }}>
+                      onClick={() => {
+                        const code = l.code;
+                        sp("lang", code);
+                        setShowLangDrop(false);
+                        if (englishPlan) {
+                          setTranslating(true);
+                          (async () => {
+                            try {
+                              setPlan(code === "en" ? englishPlan : await translateMealPlan(englishPlan, code, selDays, prefs.types));
+                            } catch {}
+                            setTranslating(false);
+                          })();
+                        }
+                      }}>
                       {l.flag ? <span>{l.flag}</span> : <span style={{fontWeight:700,fontSize:11,color:"#888",minWidth:20}}>RU</span>}
                       {l.label}
                     </div>
