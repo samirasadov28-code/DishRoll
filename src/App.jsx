@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.3.2";
+const APP_VERSION = "0.3.3";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -69,16 +69,19 @@ const COMPLEXITY = [
   { id:"elaborate", label:"👨‍🍳 Elaborate",  sub:"Impressive multi-step recipes" },
 ];
 const LANGUAGES = [
-  { code:"en", label:"English", flag:"🇬🇧" },
-  { code:"es", label:"Español", flag:"🇪🇸" },
-  { code:"fr", label:"Français", flag:"🇫🇷" },
-  { code:"de", label:"Deutsch", flag:"🇩🇪" },
-  { code:"it", label:"Italiano", flag:"🇮🇹" },
-  { code:"pt", label:"Português", flag:"🇵🇹" },
-  { code:"nl", label:"Nederlands", flag:"🇳🇱" },
-  { code:"pl", label:"Polski", flag:"🇵🇱" },
-  { code:"uk", label:"Українська", flag:"🇺🇦" },
-  { code:"az", label:"Azərbaycanca", flag:"🇦🇿" },
+  { code:"en", label:"English",     flag:"🇬🇧" },
+  { code:"uk", label:"Українська",  flag:"🇺🇦" },
+  { code:"fr", label:"Français",    flag:"🇫🇷" },
+  { code:"es", label:"Español",     flag:"🇪🇸" },
+  { code:"de", label:"Deutsch",     flag:"🇩🇪" },
+  { code:"pt", label:"Português",   flag:"🇵🇹" },
+  { code:"it", label:"Italiano",    flag:"🇮🇹" },
+  { code:"nl", label:"Nederlands",  flag:"🇳🇱" },
+  { code:"tr", label:"Türkçe",      flag:"🇹🇷" },
+  { code:"zh", label:"中文",         flag:"🇨🇳" },
+  { code:"ar", label:"العربية",     flag:"🇸🇦" },
+  { code:"hi", label:"हिन्दी",       flag:"🇮🇳" },
+  { code:"ru", label:"Русский",     flag:""    },
 ];
 
 // ─── WEEK HELPERS ─────────────────────────────────────────────────────────────
@@ -1689,15 +1692,15 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
             <div className="lang-wrap">
               {showLangDrop && <div style={{position:"fixed",inset:0,zIndex:199}} onClick={() => setShowLangDrop(false)} />}
               <button className="lang-btn" onClick={() => setShowLangDrop(v => !v)}>
-                {(LANGUAGES.find(l => l.code === (prefs.lang || "en")) || LANGUAGES[0]).flag}
-                {" "}{(prefs.lang || "en").toUpperCase()}
+                {(() => { const l = LANGUAGES.find(x => x.code === (prefs.lang || "en")) || LANGUAGES[0]; return l.flag ? `${l.flag} ${l.code.toUpperCase()}` : l.code.toUpperCase(); })()}
               </button>
               {showLangDrop && (
                 <div className="lang-drop">
                   {LANGUAGES.map(l => (
                     <div key={l.code} className={`lang-opt${prefs.lang === l.code ? " active" : ""}`}
                       onClick={() => { sp("lang", l.code); setShowLangDrop(false); }}>
-                      {l.flag} {l.label}
+                      {l.flag ? <span>{l.flag}</span> : <span style={{fontWeight:700,fontSize:11,color:"#888",minWidth:20}}>RU</span>}
+                      {l.label}
                     </div>
                   ))}
                 </div>
