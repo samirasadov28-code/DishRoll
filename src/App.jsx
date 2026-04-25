@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.3.6";
+const APP_VERSION = "0.3.7";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -92,31 +92,32 @@ function langPrefix(lang) {
   if (!lang || lang === "en") return "";
   return `Translate to ${LANG_EN[lang] || lang}: the "name" field, "description" field, and all strings in "ingredients" arrays. Keep JSON keys and "mainIngredient" values in English.\n`;
 }
+async function translateMeal(meal, langName) {
+  if (!meal || !langName) return meal;
+  const src = { name: meal.name, description: meal.description || "", ingredients: meal.ingredients || [] };
+  const raw = await callAI(
+    `Translate to ${langName}. Return ONLY this JSON with translated string values:\n${JSON.stringify(src)}`,
+    700
+  );
+  const tr = JSON.parse(raw);
+  return {
+    ...meal,
+    ...(tr.name && { name: tr.name }),
+    ...(tr.description && { description: tr.description }),
+    ...(Array.isArray(tr.ingredients) && tr.ingredients.length && { ingredients: tr.ingredients }),
+  };
+}
 async function translateMealPlan(plan, lang, selDays, types) {
   const langName = LANG_EN[lang];
   if (!langName) return plan;
-  // Build a compact batch of only the text fields that need translation
-  const batch = {};
-  selDays.forEach(d => types.forEach(t => {
-    const m = plan[d.toLowerCase()]?.[t];
-    if (m) batch[`${d.toLowerCase()}.${t}`] = { n: m.name, d: m.description, i: m.ingredients };
-  }));
-  const raw = await callAI(
-    `Translate every string value in this JSON to ${langName}. Return ONLY JSON with identical structure and keys.\n${JSON.stringify(batch)}`,
-    3000,
-    lang
-  );
-  const tr = JSON.parse(raw);
   const result = JSON.parse(JSON.stringify(plan));
-  Object.entries(tr).forEach(([k, v]) => {
-    const [day, type] = k.split(".");
-    const meal = result[day]?.[type];
-    if (meal && v) {
-      if (v.n) meal.name = v.n;
-      if (v.d) meal.description = v.d;
-      if (Array.isArray(v.i) && v.i.length) meal.ingredients = v.i;
-    }
-  });
+  const jobs = [];
+  selDays.forEach(d => types.forEach(t => {
+    const meal = result[d.toLowerCase()]?.[t];
+    if (meal) jobs.push({ d: d.toLowerCase(), t, p: translateMeal(meal, langName).catch(() => meal) });
+  }));
+  const results = await Promise.all(jobs.map(j => j.p));
+  jobs.forEach(({ d, t }, i) => { if (result[d]?.[t]) result[d][t] = results[i]; });
   return result;
 }
 
@@ -989,9 +990,7 @@ export default function App() {
       if (prefs.lang && prefs.lang !== "en") {
         try {
           const langName = LANG_EN[prefs.lang];
-          const batch = Object.fromEntries(opts.map((o, i) => [i, { n: o.name, d: o.description, i: o.ingredients }]));
-          const tr = JSON.parse(await callAI(`Translate every string value to ${langName}. Return ONLY JSON with identical structure.\n${JSON.stringify(batch)}`, 1500, prefs.lang));
-          opts = opts.map((o, i) => ({ ...o, name: tr[i]?.n || o.name, description: tr[i]?.d || o.description, ingredients: tr[i]?.i || o.ingredients }));
+          if (langName) opts = await Promise.all(opts.map(o => translateMeal(o, langName).catch(() => o)));
         } catch {}
       }
       setSwapOpts(opts);
