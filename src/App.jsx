@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.3.1";
+const APP_VERSION = "0.3.2";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -327,6 +327,13 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .hdr-logo span:last-child{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:#c4622d;letter-spacing:-.3px}
 .hdr-right{display:flex;align-items:center;gap:8px}
 .ver-pill{font-size:11px;color:#8abca0;font-weight:600;background:rgba(255,255,255,.1);padding:3px 9px;border-radius:100px}
+.lang-btn{font-size:12px;font-weight:600;background:rgba(255,255,255,.08);color:rgba(255,255,255,.85);border:1.5px solid rgba(255,255,255,.25);border-radius:100px;padding:3px 10px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.lang-btn:hover{background:rgba(255,255,255,.15)}
+.lang-wrap{position:relative}
+.lang-drop{position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid #d0dcc8;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.13);z-index:200;min-width:170px;padding:4px 0;max-height:300px;overflow-y:auto}
+.lang-opt{padding:9px 14px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#2a2a1a}
+.lang-opt:hover{background:#f0f5e8}
+.lang-opt.active{font-weight:700;color:#2a6a3a}
 .pb{height:3px;background:#c8d8b8}
 .pf{height:100%;background:linear-gradient(90deg,#2a6a3a,#c4622d);transition:width .4s}
 .page{max-width:900px;margin:0 auto;padding:36px 20px 100px}
@@ -765,6 +772,7 @@ export default function App() {
   const [cancelStep, setCancelStep]   = useState("idle"); // idle | confirm | busy | done
   const [cancelErr, setCancelErr]     = useState("");
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showLangDrop, setShowLangDrop] = useState(false);
   const [fbText, setFbText]   = useState("");
   const [fbEmail, setFbEmail] = useState("");
   const [fbState, setFbState] = useState("idle"); // idle | busy | done | error
@@ -1678,6 +1686,23 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
               ? <span style={{ fontSize: 11, fontWeight: 700, background: "linear-gradient(135deg,#c4622d,#a04820)", color: "#fff", padding: "3px 9px", borderRadius: 100 }}>✨ PREMIUM</span>
               : <span style={{ fontSize: 11, fontWeight: 600, background: "rgba(255,255,255,.1)", color: "#b0d0a0", padding: "3px 9px", borderRadius: 100, cursor: "pointer" }} onClick={() => setShowPaywall(true)}>FREE · {rleft} {inFreeTier ? "trial" : "monthly"} left</span>
             }
+            <div className="lang-wrap">
+              {showLangDrop && <div style={{position:"fixed",inset:0,zIndex:199}} onClick={() => setShowLangDrop(false)} />}
+              <button className="lang-btn" onClick={() => setShowLangDrop(v => !v)}>
+                {(LANGUAGES.find(l => l.code === (prefs.lang || "en")) || LANGUAGES[0]).flag}
+                {" "}{(prefs.lang || "en").toUpperCase()}
+              </button>
+              {showLangDrop && (
+                <div className="lang-drop">
+                  {LANGUAGES.map(l => (
+                    <div key={l.code} className={`lang-opt${prefs.lang === l.code ? " active" : ""}`}
+                      onClick={() => { sp("lang", l.code); setShowLangDrop(false); }}>
+                      {l.flag} {l.label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             {sl && step !== "list" && <button className="btn btn-ghost btn-sm" style={{color:"rgba(255,255,255,.85)",borderColor:"rgba(255,255,255,.35)",background:"rgba(255,255,255,.08)"}} onClick={() => setStep("list")}>🛒 List{doneCount > 0 ? ` (${doneCount}/${totalItems})` : ""}</button>}
             {step !== "landing" && step !== "generating" && <button className="btn btn-ghost btn-sm" style={{color:"rgba(255,255,255,.85)",borderColor:"rgba(255,255,255,.35)",background:"rgba(255,255,255,.08)"}} onClick={() => setStep("landing")}>← Home</button>}
           </div>
@@ -1708,16 +1733,6 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
               <div style={{ textAlign: "center", paddingTop: 10, marginBottom: 24 }}>
                 <div className="page-title">Plan your week.<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>Eat well.</span></div>
                 {awk && <p style={{ fontSize: 13, color: "#5a6a4a", marginTop: 6 }}>📅 {wLabel(awk)}</p>}
-              </div>
-              <div className="card">
-                <div className="label">Recipe language</div>
-                <div className="chip-group">
-                  {LANGUAGES.map(l => (
-                    <div key={l.code} className={`chip${prefs.lang === l.code ? " sel" : ""}`} onClick={() => sp("lang", l.code)}>
-                      {l.flag} {l.label}
-                    </div>
-                  ))}
-                </div>
               </div>
               <div className="card">
                 <div className="label">What would you like to plan?</div>
