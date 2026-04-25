@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.3.3";
+const APP_VERSION = "0.3.4";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -83,6 +83,15 @@ const LANGUAGES = [
   { code:"hi", label:"हिन्दी",       flag:"🇮🇳" },
   { code:"ru", label:"Русский",     flag:""    },
 ];
+const LANG_EN = {
+  en:"English", uk:"Ukrainian", fr:"French", es:"Spanish", de:"German",
+  pt:"Portuguese", it:"Italian", nl:"Dutch", tr:"Turkish",
+  zh:"Chinese", ar:"Arabic", hi:"Hindi", ru:"Russian",
+};
+function langPrefix(lang) {
+  if (!lang || lang === "en") return "";
+  return `CRITICAL INSTRUCTION: You MUST write ALL meal names, descriptions, and ingredient names in ${LANG_EN[lang] || lang}. Do not use English in any of these fields.\n`;
+}
 
 // ─── WEEK HELPERS ─────────────────────────────────────────────────────────────
 function mondayOf(d) {
@@ -911,16 +920,14 @@ export default function App() {
       const dJ = selDays.map(d => `"${d.toLowerCase()}":${daySchema}`).join(",");
       const varietyCap = Math.max(2, Math.ceil(selDays.length / 3));
       const varietyRule = `VARIETY:No single "mainIngredient" may appear more than ${varietyCap} times across the whole plan. Rotate proteins (chicken,beef,fish,pork,lamb,tofu,lentils,chickpeas,eggs) and bases (pasta,rice,noodles,bread,potato) so no ingredient dominates.`;
-      const langObj = LANGUAGES.find(l => l.code === (prefs.lang || "en"));
-      const langLine = langObj && langObj.code !== "en" ? `Language:Write all meal names, descriptions and ingredient names in ${langObj.label}.\n` : "";
       const raw = await callAI(
+        langPrefix(prefs.lang) +
         `Generate a meal plan. Return ONLY valid compact JSON, no whitespace.\n` +
         `Days:${selDays.map(d => d.slice(0,3)).join(",")}|Types:${prefs.types.join(",")}|` +
         `Cuisines:${prefs.cuisines.length ? prefs.cuisines.join(",") : "varied"}|` +
         `Dietary:${prefs.dietary.length ? prefs.dietary.join(",") : "none"}|` +
         `Adventure:${prefs.adventure}%|Servings:${tsrv}|Favs:${fh || "none"}|${bn}${cn}${kn}\n` +
         `${varietyRule}\n` +
-        `${langLine}` +
         `Return:{${dJ}}`,
         4000
       );
@@ -941,10 +948,9 @@ export default function App() {
     const cur = plan?.[day.toLowerCase()]?.[mt]; if (!cur) return;
     setSwap({ day, mt }); setSwapLd(true); setSwapOpts([]);
     try {
-      const swapLangObj = LANGUAGES.find(l => l.code === (prefs.lang || "en"));
-      const swapLangLine = swapLangObj && swapLangObj.code !== "en" ? ` Write all output in ${swapLangObj.label}.` : "";
       const raw = await callAI(
-        `3 alternative ${mt} recipes to replace "${cur.name}". Cuisines:${prefs.cuisines.join(",") || "any"}. Dietary:${prefs.dietary.join(",") || "none"}. Complexity:${prefs.complexity}. Servings:${tsrv}.${swapLangLine}\n` +
+        langPrefix(prefs.lang) +
+        `3 alternative ${mt} recipes to replace "${cur.name}". Cuisines:${prefs.cuisines.join(",") || "any"}. Dietary:${prefs.dietary.join(",") || "none"}. Complexity:${prefs.complexity}. Servings:${tsrv}.\n` +
         `Return ONLY JSON array:[{"name":"...","description":"Two sentences: ingredients/method then flavour profile.","time":"X min","estCost":0.00,"ingredients":["qty item"]},...]`,
         1200
       );
@@ -987,10 +993,12 @@ export default function App() {
           if (ka?.ingredients?.length) items.push({ meal: ka.name, servings: prefs.kids, ingredients: ka.ingredients, label: "Kids" });
         }
       }));
+      const listLang = langPrefix(prefs.lang).replace("meal names, descriptions, and ingredient names", "ingredient item names (keep category names in English)");
       const raw = await callAI(
+        listLang +
         `Combine into grocery list. Merge identical items. Group by supermarket aisle.\nMeals:${JSON.stringify(items)}\n` +
         `Return ONLY JSON:{"categories":[{"name":"Produce","items":["2 onions"]},{"name":"Proteins","items":["600g chicken"]}]}\n` +
-        `Categories:Produce,Proteins,Dairy,Grains,Pantry,Condiments,Frozen,Bakery,Beverages,Other.`,
+        `Categories MUST be exactly these English names:Produce,Proteins,Dairy,Grains,Pantry,Condiments,Frozen,Bakery,Beverages,Other.`,
         2400
       );
       const list = JSON.parse(raw);
@@ -1010,12 +1018,13 @@ export default function App() {
     fetchPhoto(meal.name, mt, meal.ingredients, meal.mainIngredient).then(url => setRecipe(p => p ? { ...p, photoUrl: url || photoFallback(meal.name, mt, meal.mainIngredient), photoLd: false } : null));
     // Recipe: detailed prompt with retry on failure
     const srv = isKids ? prefs.kids : tsrv;
-    const prompt = isKids
+    const recipeLangPrefix = langPrefix(prefs.lang).replace("meal names, descriptions, and ingredient names", "all steps, tips, and ingredient names");
+    const prompt = recipeLangPrefix + (isKids
       ? `Write a simple, fun child-friendly recipe for "${meal.name}" for ${srv} kids (ages 4–12). Use mild flavours and simple techniques a child can help with.
 Return ONLY JSON:{"steps":["Step 1 with detail...","Step 2...","Step 3...","Step 4...","Step 5..."],"tip":"a fun tip for cooking with kids","prepTime":"X min","cookTime":"X min","difficulty":"Easy"}`
       : `Write a detailed, professional home cook recipe for "${meal.name}" for ${srv} servings.
 Rules: each step must include exact ingredient quantities, specific cooking temperatures in °C, and precise timing. Minimum 7 steps. Be thorough — a beginner should be able to follow this exactly.
-Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applicable, time]. [tip]","Step 2:...","Step 3:...","Step 4:...","Step 5:...","Step 6:...","Step 7:..."],"tip":"One expert chef insight specific to this dish","prepTime":"X min","cookTime":"X min","difficulty":"Easy|Medium|Hard"}`;
+Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applicable, time]. [tip]","Step 2:...","Step 3:...","Step 4:...","Step 5:...","Step 6:...","Step 7:..."],"tip":"One expert chef insight specific to this dish","prepTime":"X min","cookTime":"X min","difficulty":"Easy|Medium|Hard"}`);
     const tryLoad = async (attempt) => {
       try {
         const raw = await callAI(prompt, 2200);
