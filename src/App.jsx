@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.3.8";
+const APP_VERSION = "0.3.9";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -96,30 +96,26 @@ async function translateMealPlan(plan, lang, selDays, types) {
   const langName = LANG_EN[lang];
   if (!langName) return plan;
   const refs = [];
-  const meals = [];
+  const batch = {};
   selDays.forEach(d => types.forEach(t => {
     const m = plan[d.toLowerCase()]?.[t];
-    if (m) {
-      refs.push({ d: d.toLowerCase(), t });
-      meals.push({ name: m.name, description: m.description || "", ingredients: m.ingredients || [] });
-    }
+    if (m) { const i = refs.length; refs.push({ d: d.toLowerCase(), t }); batch[i] = { n: m.name, d: m.description || "", g: m.ingredients || [] }; }
   }));
-  if (!meals.length) return plan;
+  if (!refs.length) return plan;
   const raw = await callAI(
-    `Translate every string value to ${langName}. Return ONLY a JSON array with the same length and structure:\n${JSON.stringify(meals)}`,
+    `Translate every string value to ${langName}. Return ONLY JSON with identical numeric keys and structure:\n${JSON.stringify(batch)}`,
     4000
   );
-  let translated;
-  try { translated = JSON.parse(raw); } catch { return plan; }
-  if (!Array.isArray(translated) || translated.length !== meals.length) return plan;
+  let tr;
+  try { tr = JSON.parse(raw); } catch { return plan; }
   const result = JSON.parse(JSON.stringify(plan));
   refs.forEach(({ d, t }, i) => {
     const meal = result[d]?.[t];
-    const tr = translated[i];
-    if (meal && tr) {
-      if (tr.name) meal.name = tr.name;
-      if (tr.description) meal.description = tr.description;
-      if (Array.isArray(tr.ingredients) && tr.ingredients.length) meal.ingredients = tr.ingredients;
+    const v = tr[i];
+    if (meal && v) {
+      if (v.n) meal.name = v.n;
+      if (v.d) meal.description = v.d;
+      if (Array.isArray(v.g) && v.g.length) meal.ingredients = v.g;
     }
   });
   return result;
@@ -997,12 +993,10 @@ export default function App() {
         try {
           const langName = LANG_EN[prefs.lang];
           if (langName) {
-            const src = opts.map(o => ({ name: o.name, description: o.description || "", ingredients: o.ingredients || [] }));
-            const raw2 = await callAI(`Translate every string value to ${langName}. Return ONLY a JSON array with the same length and structure:\n${JSON.stringify(src)}`, 1500);
+            const sb = {}; opts.forEach((o, i) => { sb[i] = { n: o.name, d: o.description || "", g: o.ingredients || [] }; });
+            const raw2 = await callAI(`Translate every string value to ${langName}. Return ONLY JSON with identical numeric keys and structure:\n${JSON.stringify(sb)}`, 1500);
             const tr = JSON.parse(raw2);
-            if (Array.isArray(tr) && tr.length === opts.length) {
-              opts = opts.map((o, i) => ({ ...o, ...(tr[i].name && { name: tr[i].name }), ...(tr[i].description && { description: tr[i].description }), ...(Array.isArray(tr[i].ingredients) && tr[i].ingredients.length && { ingredients: tr[i].ingredients }) }));
-            }
+            opts = opts.map((o, i) => { const v = tr[i]; return v ? { ...o, ...(v.n && { name: v.n }), ...(v.d && { description: v.d }), ...(Array.isArray(v.g) && v.g.length && { ingredients: v.g }) } : o; });
           }
         } catch {}
       }
