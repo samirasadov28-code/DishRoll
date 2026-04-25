@@ -3,6 +3,12 @@ const MODEL = 'llama-3.3-70b-versatile';
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1500;
 
+const LANG_EN = {
+  uk:'Ukrainian', fr:'French', es:'Spanish', de:'German',
+  pt:'Portuguese', it:'Italian', nl:'Dutch', tr:'Turkish',
+  zh:'Chinese', ar:'Arabic', hi:'Hindi', ru:'Russian',
+};
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 exports.handler = async (event) => {
@@ -20,10 +26,17 @@ exports.handler = async (event) => {
     };
   }
 
-  let { prompt, maxTokens = 4000 } = JSON.parse(event.body);
+  let { prompt, maxTokens = 4000, lang } = JSON.parse(event.body);
 
   // Groq has per-model token limits — cap to avoid errors
   if (maxTokens > 4000) maxTokens = 4000;
+
+  // Build system prompt — language instruction goes here so the model treats it as binding
+  const langName = lang && lang !== 'en' ? LANG_EN[lang] : null;
+  const langNote = langName
+    ? ` You MUST write every text value in ${langName}. Do not use English in any field.`
+    : '';
+  const systemContent = `You are a culinary expert and meal planner. Respond ONLY with valid compact JSON. No markdown backticks, no prose, no preamble, no explanation.${langNote}`;
 
   let lastError = '';
 
@@ -38,10 +51,7 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           model: MODEL,
           messages: [
-            {
-              role: 'system',
-              content: 'You are a culinary expert and meal planner. Respond ONLY with valid compact JSON. No markdown backticks, no prose, no preamble, no explanation.',
-            },
+            { role: 'system', content: systemContent },
             { role: 'user', content: prompt },
           ],
           max_tokens: maxTokens,
