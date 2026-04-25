@@ -31,12 +31,8 @@ exports.handler = async (event) => {
   // Groq has per-model token limits — cap to avoid errors
   if (maxTokens > 4000) maxTokens = 4000;
 
-  // Build system prompt — language instruction goes here so the model treats it as binding
-  const langName = lang && lang !== 'en' ? LANG_EN[lang] : null;
-  const langNote = langName
-    ? ` You MUST write every text value in ${langName}. Do not use English in any field.`
-    : '';
-  const systemContent = `You are a culinary expert and meal planner. Respond ONLY with valid compact JSON. No markdown backticks, no prose, no preamble, no explanation.${langNote}`;
+  // System prompt is always the same — language is handled by the user prompt
+  const systemContent = 'You are a culinary expert and meal planner. Respond ONLY with valid compact JSON. No markdown backticks, no prose, no preamble, no explanation.';
 
   let lastError = '';
 
