@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.3.5";
+const APP_VERSION = "0.3.6";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -90,7 +90,34 @@ const LANG_EN = {
 };
 function langPrefix(lang) {
   if (!lang || lang === "en") return "";
-  return `CRITICAL INSTRUCTION: You MUST write ALL meal names, descriptions, and ingredient names in ${LANG_EN[lang] || lang}. Do not use English in any of these fields.\n`;
+  return `Translate to ${LANG_EN[lang] || lang}: the "name" field, "description" field, and all strings in "ingredients" arrays. Keep JSON keys and "mainIngredient" values in English.\n`;
+}
+async function translateMealPlan(plan, lang, selDays, types) {
+  const langName = LANG_EN[lang];
+  if (!langName) return plan;
+  // Build a compact batch of only the text fields that need translation
+  const batch = {};
+  selDays.forEach(d => types.forEach(t => {
+    const m = plan[d.toLowerCase()]?.[t];
+    if (m) batch[`${d.toLowerCase()}.${t}`] = { n: m.name, d: m.description, i: m.ingredients };
+  }));
+  const raw = await callAI(
+    `Translate every string value in this JSON to ${langName}. Return ONLY JSON with identical structure and keys.\n${JSON.stringify(batch)}`,
+    3000,
+    lang
+  );
+  const tr = JSON.parse(raw);
+  const result = JSON.parse(JSON.stringify(plan));
+  Object.entries(tr).forEach(([k, v]) => {
+    const [day, type] = k.split(".");
+    const meal = result[day]?.[type];
+    if (meal && v) {
+      if (v.n) meal.name = v.n;
+      if (v.d) meal.description = v.d;
+      if (Array.isArray(v.i) && v.i.length) meal.ingredients = v.i;
+    }
+  });
+  return result;
 }
 
 // ─── WEEK HELPERS ─────────────────────────────────────────────────────────────
@@ -923,7 +950,6 @@ export default function App() {
       const varietyCap = Math.max(2, Math.ceil(selDays.length / 3));
       const varietyRule = `VARIETY:No single "mainIngredient" may appear more than ${varietyCap} times across the whole plan. Rotate proteins (chicken,beef,fish,pork,lamb,tofu,lentils,chickpeas,eggs) and bases (pasta,rice,noodles,bread,potato) so no ingredient dominates.`;
       const raw = await callAI(
-        langPrefix(prefs.lang) +
         `Generate a meal plan. Return ONLY valid compact JSON, no whitespace.\n` +
         `Days:${selDays.map(d => d.slice(0,3)).join(",")}|Types:${prefs.types.join(",")}|` +
         `Cuisines:${prefs.cuisines.length ? prefs.cuisines.join(",") : "varied"}|` +
@@ -931,12 +957,15 @@ export default function App() {
         `Adventure:${prefs.adventure}%|Servings:${tsrv}|Favs:${fh || "none"}|${bn}${cn}${kn}\n` +
         `${varietyRule}\n` +
         `Return:{${dJ}}`,
-        4000,
-        prefs.lang
+        4000
       );
-      const p2 = JSON.parse(raw);
+      let p2 = JSON.parse(raw);
       const anyMeal = selDays.some(d => { const day = p2[d.toLowerCase()]; return day && prefs.types.some(t => day[t]?.name); });
       if (!anyMeal) throw new Error("No meals returned — please try again.");
+      // Two-step translation: generate in English first, then translate text fields
+      if (prefs.lang && prefs.lang !== "en") {
+        try { p2 = await translateMealPlan(p2, prefs.lang, selDays, prefs.types); } catch {}
+      }
       const c2 = {};
       selDays.forEach(d => prefs.types.forEach(t => { const m = p2[d.toLowerCase()]?.[t]; if (m?.estCost) c2[`${d.toLowerCase()}-${t}`] = m.estCost; }));
       clearInterval(iv); setPlan(p2); setCosts(c2);
@@ -952,13 +981,20 @@ export default function App() {
     setSwap({ day, mt }); setSwapLd(true); setSwapOpts([]);
     try {
       const raw = await callAI(
-        langPrefix(prefs.lang) +
         `3 alternative ${mt} recipes to replace "${cur.name}". Cuisines:${prefs.cuisines.join(",") || "any"}. Dietary:${prefs.dietary.join(",") || "none"}. Complexity:${prefs.complexity}. Servings:${tsrv}.\n` +
         `Return ONLY JSON array:[{"name":"...","description":"Two sentences: ingredients/method then flavour profile.","time":"X min","estCost":0.00,"ingredients":["qty item"]},...]`,
-        1200,
-        prefs.lang
+        1200
       );
-      setSwapOpts(JSON.parse(raw));
+      let opts = JSON.parse(raw);
+      if (prefs.lang && prefs.lang !== "en") {
+        try {
+          const langName = LANG_EN[prefs.lang];
+          const batch = Object.fromEntries(opts.map((o, i) => [i, { n: o.name, d: o.description, i: o.ingredients }]));
+          const tr = JSON.parse(await callAI(`Translate every string value to ${langName}. Return ONLY JSON with identical structure.\n${JSON.stringify(batch)}`, 1500, prefs.lang));
+          opts = opts.map((o, i) => ({ ...o, name: tr[i]?.n || o.name, description: tr[i]?.d || o.description, ingredients: tr[i]?.i || o.ingredients }));
+        } catch {}
+      }
+      setSwapOpts(opts);
     } catch { setSwapOpts([]); }
     setSwapLd(false);
   }
@@ -1023,19 +1059,30 @@ export default function App() {
     fetchPhoto(meal.name, mt, meal.ingredients, meal.mainIngredient).then(url => setRecipe(p => p ? { ...p, photoUrl: url || photoFallback(meal.name, mt, meal.mainIngredient), photoLd: false } : null));
     // Recipe: detailed prompt with retry on failure
     const srv = isKids ? prefs.kids : tsrv;
-    const recipeLangPrefix = langPrefix(prefs.lang).replace("meal names, descriptions, and ingredient names", "all steps, tips, and ingredient names");
-    const prompt = recipeLangPrefix + (isKids
+    const prompt = isKids
       ? `Write a simple, fun child-friendly recipe for "${meal.name}" for ${srv} kids (ages 4–12). Use mild flavours and simple techniques a child can help with.
 Return ONLY JSON:{"steps":["Step 1 with detail...","Step 2...","Step 3...","Step 4...","Step 5..."],"tip":"a fun tip for cooking with kids","prepTime":"X min","cookTime":"X min","difficulty":"Easy"}`
       : `Write a detailed, professional home cook recipe for "${meal.name}" for ${srv} servings.
 Rules: each step must include exact ingredient quantities, specific cooking temperatures in °C, and precise timing. Minimum 7 steps. Be thorough — a beginner should be able to follow this exactly.
-Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applicable, time]. [tip]","Step 2:...","Step 3:...","Step 4:...","Step 5:...","Step 6:...","Step 7:..."],"tip":"One expert chef insight specific to this dish","prepTime":"X min","cookTime":"X min","difficulty":"Easy|Medium|Hard"}`);
+Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applicable, time]. [tip]","Step 2:...","Step 3:...","Step 4:...","Step 5:...","Step 6:...","Step 7:..."],"tip":"One expert chef insight specific to this dish","prepTime":"X min","cookTime":"X min","difficulty":"Easy|Medium|Hard"}`;
+    const recipeLang = prefs.lang && prefs.lang !== "en" ? prefs.lang : null;
     const tryLoad = async (attempt) => {
       try {
-        const raw = await callAI(prompt, 2200, prefs.lang);
+        const raw = await callAI(prompt, 2200);
         const d = JSON.parse(raw);
         if (!d.steps || d.steps.length === 0) throw new Error("empty");
-        setRecipe(p => p ? { ...p, steps: d.steps, tip: d.tip || "", prepTime: d.prepTime || "", cookTime: d.cookTime || "", difficulty: d.difficulty || "", stepsLd: false } : null);
+        // Two-step: translate steps and tip after generating in English
+        let steps = d.steps, tip = d.tip || "";
+        if (recipeLang) {
+          try {
+            const langName = LANG_EN[recipeLang];
+            const batch = { steps: d.steps, tip: d.tip || "" };
+            const tr = JSON.parse(await callAI(`Translate every string value to ${langName}. Return ONLY JSON with identical structure.\n${JSON.stringify(batch)}`, 2200, recipeLang));
+            if (tr.steps?.length) steps = tr.steps;
+            if (tr.tip) tip = tr.tip;
+          } catch {}
+        }
+        setRecipe(p => p ? { ...p, steps, tip, prepTime: d.prepTime || "", cookTime: d.cookTime || "", difficulty: d.difficulty || "", stepsLd: false } : null);
       } catch (e) {
         if (attempt < 2) {
           await new Promise(r => setTimeout(r, 1000));
