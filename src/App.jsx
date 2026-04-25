@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.3.4";
+const APP_VERSION = "0.3.5";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -171,8 +171,8 @@ function repairJSON(s) {
   out += stack.reverse().join("");
   try { JSON.parse(out); return out; } catch { return s; }
 }
-async function callAI(prompt, maxTokens = 4000) {
-  const r = await fetch("/.netlify/functions/chat", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ prompt, maxTokens }) });
+async function callAI(prompt, maxTokens = 4000, lang = "en") {
+  const r = await fetch("/.netlify/functions/chat", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ prompt, maxTokens, lang }) });
   if (!r.ok) throw new Error("API " + r.status);
   const d = await r.json();
   if (d.error) throw new Error(d.error);
@@ -333,14 +333,16 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 
 /* layout */
 .app{min-height:100vh;background:#faf7f0}
-.hdr{background:#1a4a2a;padding:12px 22px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.hdr-logo{cursor:pointer;display:flex;align-items:center;line-height:1}
+.hdr{background:#1a4a2a;padding:12px 22px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:8px}
+.hdr-logo{cursor:pointer;display:flex;align-items:center;line-height:1;flex-shrink:0}
 .hdr-logo span:first-child{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:#fff;letter-spacing:-.3px}
 .hdr-logo span:last-child{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700;color:#c4622d;letter-spacing:-.3px}
-.hdr-right{display:flex;align-items:center;gap:8px}
-.ver-pill{font-size:11px;color:#8abca0;font-weight:600;background:rgba(255,255,255,.1);padding:3px 9px;border-radius:100px}
-.lang-btn{font-size:12px;font-weight:600;background:rgba(255,255,255,.08);color:rgba(255,255,255,.85);border:1.5px solid rgba(255,255,255,.25);border-radius:100px;padding:3px 10px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap}
-.lang-btn:hover{background:rgba(255,255,255,.15)}
+.hdr-right{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-width:0;overflow:visible}
+.ver-pill{font-size:11px;color:#8abca0;font-weight:600;background:rgba(255,255,255,.1);padding:3px 9px;border-radius:100px;flex-shrink:0}
+.lang-btn{font-size:12px;font-weight:600;background:rgba(255,255,255,.12);color:rgba(255,255,255,.9);border:1.5px solid rgba(255,255,255,.35);border-radius:100px;padding:4px 10px;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap;flex-shrink:0}
+.lang-btn:hover{background:rgba(255,255,255,.22)}
+.lang-code{font-size:11px;opacity:.85}
+@media(max-width:520px){.ver-pill{display:none}.lang-code{display:none}.hdr{padding:10px 14px}}
 .lang-wrap{position:relative}
 .lang-drop{position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid #d0dcc8;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.13);z-index:200;min-width:170px;padding:4px 0;max-height:300px;overflow-y:auto}
 .lang-opt{padding:9px 14px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;color:#2a2a1a}
@@ -929,7 +931,8 @@ export default function App() {
         `Adventure:${prefs.adventure}%|Servings:${tsrv}|Favs:${fh || "none"}|${bn}${cn}${kn}\n` +
         `${varietyRule}\n` +
         `Return:{${dJ}}`,
-        4000
+        4000,
+        prefs.lang
       );
       const p2 = JSON.parse(raw);
       const anyMeal = selDays.some(d => { const day = p2[d.toLowerCase()]; return day && prefs.types.some(t => day[t]?.name); });
@@ -952,7 +955,8 @@ export default function App() {
         langPrefix(prefs.lang) +
         `3 alternative ${mt} recipes to replace "${cur.name}". Cuisines:${prefs.cuisines.join(",") || "any"}. Dietary:${prefs.dietary.join(",") || "none"}. Complexity:${prefs.complexity}. Servings:${tsrv}.\n` +
         `Return ONLY JSON array:[{"name":"...","description":"Two sentences: ingredients/method then flavour profile.","time":"X min","estCost":0.00,"ingredients":["qty item"]},...]`,
-        1200
+        1200,
+        prefs.lang
       );
       setSwapOpts(JSON.parse(raw));
     } catch { setSwapOpts([]); }
@@ -999,7 +1003,8 @@ export default function App() {
         `Combine into grocery list. Merge identical items. Group by supermarket aisle.\nMeals:${JSON.stringify(items)}\n` +
         `Return ONLY JSON:{"categories":[{"name":"Produce","items":["2 onions"]},{"name":"Proteins","items":["600g chicken"]}]}\n` +
         `Categories MUST be exactly these English names:Produce,Proteins,Dairy,Grains,Pantry,Condiments,Frozen,Bakery,Beverages,Other.`,
-        2400
+        2400,
+        prefs.lang
       );
       const list = JSON.parse(raw);
       track("list_built", { adult_meals: picked.size, kids_meals: kPicked.size, items: list.categories.flatMap(c => c.items).length });
@@ -1027,7 +1032,7 @@ Rules: each step must include exact ingredient quantities, specific cooking temp
 Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applicable, time]. [tip]","Step 2:...","Step 3:...","Step 4:...","Step 5:...","Step 6:...","Step 7:..."],"tip":"One expert chef insight specific to this dish","prepTime":"X min","cookTime":"X min","difficulty":"Easy|Medium|Hard"}`);
     const tryLoad = async (attempt) => {
       try {
-        const raw = await callAI(prompt, 2200);
+        const raw = await callAI(prompt, 2200, prefs.lang);
         const d = JSON.parse(raw);
         if (!d.steps || d.steps.length === 0) throw new Error("empty");
         setRecipe(p => p ? { ...p, steps: d.steps, tip: d.tip || "", prepTime: d.prepTime || "", cookTime: d.cookTime || "", difficulty: d.difficulty || "", stepsLd: false } : null);
@@ -1701,7 +1706,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
             <div className="lang-wrap">
               {showLangDrop && <div style={{position:"fixed",inset:0,zIndex:199}} onClick={() => setShowLangDrop(false)} />}
               <button className="lang-btn" onClick={() => setShowLangDrop(v => !v)}>
-                {(() => { const l = LANGUAGES.find(x => x.code === (prefs.lang || "en")) || LANGUAGES[0]; return l.flag ? `${l.flag} ${l.code.toUpperCase()}` : l.code.toUpperCase(); })()}
+                {(() => { const l = LANGUAGES.find(x => x.code === (prefs.lang || "en")) || LANGUAGES[0]; return (<>{l.flag ? <span>{l.flag}</span> : <span style={{fontWeight:800,fontSize:11}}>RU</span>}<span className="lang-code">{l.code.toUpperCase()}</span></>); })()}
               </button>
               {showLangDrop && (
                 <div className="lang-drop">
@@ -1715,8 +1720,8 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                 </div>
               )}
             </div>
-            {sl && step !== "list" && <button className="btn btn-ghost btn-sm" style={{color:"rgba(255,255,255,.85)",borderColor:"rgba(255,255,255,.35)",background:"rgba(255,255,255,.08)"}} onClick={() => setStep("list")}>🛒 List{doneCount > 0 ? ` (${doneCount}/${totalItems})` : ""}</button>}
-            {step !== "landing" && step !== "generating" && <button className="btn btn-ghost btn-sm" style={{color:"rgba(255,255,255,.85)",borderColor:"rgba(255,255,255,.35)",background:"rgba(255,255,255,.08)"}} onClick={() => setStep("landing")}>← Home</button>}
+            {sl && step !== "list" && <button className="btn btn-ghost btn-sm" style={{color:"#fff",borderColor:"rgba(255,165,0,.7)",background:"rgba(196,98,45,.55)",fontWeight:700}} onClick={() => setStep("list")}>🛒<span style={{marginLeft:4}}>List{doneCount > 0 ? ` (${doneCount}/${totalItems})` : ""}</span></button>}
+            {step !== "landing" && step !== "generating" && <button className="btn btn-ghost btn-sm" style={{color:"rgba(255,255,255,.9)",borderColor:"rgba(255,255,255,.35)",background:"rgba(255,255,255,.1)"}} onClick={() => setStep("landing")}>← Home</button>}
           </div>
         </div>
 
