@@ -4,6 +4,8 @@
 // Env vars (all optional):
 //   FEEDBACK_EMAIL_TO   — your inbox, e.g. you@gmail.com
 //   FEEDBACK_RESEND_KEY — API key from resend.com (free tier: 3 000 emails/month)
+//   FEEDBACK_EMAIL_FROM — sending address (must be verified in Resend, or omit to
+//                         use onboarding@resend.dev which works without any setup)
 //   FEEDBACK_WEBHOOK_URL — any webhook (Zapier / Slack / Discord / custom)
 
 exports.handler = async (event) => {
@@ -38,12 +40,16 @@ exports.handler = async (event) => {
   // Always log to Netlify function logs (visible in dashboard)
   console.log('[dishroll-feedback]', JSON.stringify(record));
 
-  const { FEEDBACK_EMAIL_TO, FEEDBACK_RESEND_KEY, FEEDBACK_WEBHOOK_URL } = process.env;
+  const { FEEDBACK_EMAIL_TO, FEEDBACK_RESEND_KEY, FEEDBACK_EMAIL_FROM, FEEDBACK_WEBHOOK_URL } = process.env;
 
   // Email notification via Resend (resend.com — free tier covers 3 000 emails/month)
+  // FEEDBACK_EMAIL_FROM defaults to onboarding@resend.dev, which works without domain
+  // verification. Once you verify dishroll.app in Resend, set FEEDBACK_EMAIL_FROM to
+  // e.g. "DishRoll <feedback@dishroll.app>" for a branded sender.
   if (FEEDBACK_EMAIL_TO && FEEDBACK_RESEND_KEY) {
     try {
-      const fromUser = email ? `${email}` : 'anonymous';
+      const fromAddress = FEEDBACK_EMAIL_FROM || 'DishRoll Feedback <onboarding@resend.dev>';
+      const fromUser = email || 'anonymous';
       const subject = `DishRoll feedback from ${fromUser}`;
       const text = [
         `From: ${email || 'anonymous'}`,
@@ -57,20 +63,29 @@ exports.handler = async (event) => {
         `UA: ${record.ua || '?'}`,
       ].join('\n');
 
-      await fetch('https://api.resend.com/emails', {
+      const emailPayload = {
+        from: fromAddress,
+        to: [FEEDBACK_EMAIL_TO],
+        subject,
+        text,
+      };
+      if (email) emailPayload.reply_to = email;
+
+      const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${FEEDBACK_RESEND_KEY}`,
         },
-        body: JSON.stringify({
-          from: 'DishRoll Feedback <feedback@dishroll.app>',
-          to: [FEEDBACK_EMAIL_TO],
-          reply_to: email || undefined,
-          subject,
-          text,
-        }),
+        body: JSON.stringify(emailPayload),
       });
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        console.warn('[dishroll-feedback] Resend error', res.status, errBody);
+      } else {
+        console.log('[dishroll-feedback] email sent to', FEEDBACK_EMAIL_TO);
+      }
     } catch (err) {
       console.warn('[dishroll-feedback] email failed:', err.message);
     }
