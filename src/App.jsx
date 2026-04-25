@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.3.0";
+const APP_VERSION = "0.3.1";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -1678,8 +1678,8 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
               ? <span style={{ fontSize: 11, fontWeight: 700, background: "linear-gradient(135deg,#c4622d,#a04820)", color: "#fff", padding: "3px 9px", borderRadius: 100 }}>✨ PREMIUM</span>
               : <span style={{ fontSize: 11, fontWeight: 600, background: "rgba(255,255,255,.1)", color: "#b0d0a0", padding: "3px 9px", borderRadius: 100, cursor: "pointer" }} onClick={() => setShowPaywall(true)}>FREE · {rleft} {inFreeTier ? "trial" : "monthly"} left</span>
             }
-            {sl && step !== "list" && <button className="btn btn-ghost btn-sm" onClick={() => setStep("list")}>🛒 List{doneCount > 0 ? ` (${doneCount}/${totalItems})` : ""}</button>}
-            {step !== "landing" && step !== "generating" && <button className="btn btn-ghost btn-sm" onClick={() => setStep("landing")}>← Home</button>}
+            {sl && step !== "list" && <button className="btn btn-ghost btn-sm" style={{color:"rgba(255,255,255,.85)",borderColor:"rgba(255,255,255,.35)",background:"rgba(255,255,255,.08)"}} onClick={() => setStep("list")}>🛒 List{doneCount > 0 ? ` (${doneCount}/${totalItems})` : ""}</button>}
+            {step !== "landing" && step !== "generating" && <button className="btn btn-ghost btn-sm" style={{color:"rgba(255,255,255,.85)",borderColor:"rgba(255,255,255,.35)",background:"rgba(255,255,255,.08)"}} onClick={() => setStep("landing")}>← Home</button>}
           </div>
         </div>
 
@@ -1708,6 +1708,16 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
               <div style={{ textAlign: "center", paddingTop: 10, marginBottom: 24 }}>
                 <div className="page-title">Plan your week.<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>Eat well.</span></div>
                 {awk && <p style={{ fontSize: 13, color: "#5a6a4a", marginTop: 6 }}>📅 {wLabel(awk)}</p>}
+              </div>
+              <div className="card">
+                <div className="label">Recipe language</div>
+                <div className="chip-group">
+                  {LANGUAGES.map(l => (
+                    <div key={l.code} className={`chip${prefs.lang === l.code ? " sel" : ""}`} onClick={() => sp("lang", l.code)}>
+                      {l.flag} {l.label}
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="card">
                 <div className="label">What would you like to plan?</div>
@@ -1815,7 +1825,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
           {step === "vibe" && (
             <div>
               <div className="page-title">Your culinary<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>personality</span></div>
-              <p className="page-sub">Set your adventure level, complexity, language, and any must-have meals.</p>
+              <p className="page-sub">Set your adventure level, complexity, and any must-have meals.</p>
               <div className="card">
                 <div className="label">Adventure level</div>
                 <input type="range" min={0} max={100} value={prefs.adventure} onChange={e => sp("adventure", +e.target.value)} className="slider" />
@@ -1824,17 +1834,6 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
               <div className="card">
                 <div className="label">Dish complexity</div>
                 <div className="cx-grid">{COMPLEXITY.map(o => <div key={o.id} className={`cx-card${prefs.complexity === o.id ? " sel" : ""}`} onClick={() => sp("complexity", o.id)}><div className="cx-label">{o.label}</div><div className="cx-sub">{o.sub}</div></div>)}</div>
-              </div>
-              <div className="card">
-                <div className="label">Recipe language</div>
-                <p className="hint">Meal names and descriptions will be in the language you choose.</p>
-                <div className="chip-group">
-                  {LANGUAGES.map(l => (
-                    <div key={l.code} className={`chip${prefs.lang === l.code ? " sel" : ""}`} onClick={() => sp("lang", l.code)}>
-                      {l.flag} {l.label}
-                    </div>
-                  ))}
-                </div>
               </div>
               <div className="card">
                 <div className="label">Lock in favourites (optional)</div>
