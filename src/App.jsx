@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.3.9";
+const APP_VERSION = "0.4.0";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -87,6 +87,135 @@ const LANG_EN = {
   en:"English", uk:"Ukrainian", fr:"French", es:"Spanish", de:"German",
   pt:"Portuguese", it:"Italian", nl:"Dutch", tr:"Turkish",
   zh:"Chinese", ar:"Arabic", hi:"Hindi", ru:"Russian",
+};
+// ─── UI TRANSLATIONS ──────────────────────────────────────────────────────────
+const UI = {
+  en: {
+    hero1:"Weekly meal planning", hero2:"Know what's for", hero2em:"dinner every night.",
+    hero3:"Plan your week, generate a shopping list, and discover new recipes.",
+    planThisWeek:"Plan this week", goPremium:"✦ Go Premium",
+    home:"← Home", back:"← Back", continue:"Continue →", planMyWeek:"Plan my week",
+    calendar:"← Calendar", autoSaved:"Auto-saved",
+    thisWeek:"This week", yourWeeks:"Your weeks", saved:"Saved", upcoming:"Upcoming",
+    tapToPlan:"Tap to plan", planAhead:"Plan ahead · skip impulse buys",
+    openPlan:"Open plan", planAgain:"Plan again", open:"Open", list:"List", replan:"Re-plan", plan:"Plan",
+    confirm:"Confirm", cancel:"Cancel", weekDeleted:"Week deleted",
+    alreadyPlanned:"Already planned — open or plan again", notPlanned:"Not planned yet",
+    shoppingList:"Shopping list",
+    yourPlanReady:"Your plan", yourPlanReadyEm:"is ready.",
+    replanBtn:"↻ Re-plan",
+    planHint:"Tap a card to add to basket · 📖 for recipe · ☆ to favourite · ↻ to swap",
+    estimatedCost:"Estimated weekly cost",
+    buildList:"Build shopping list", buildingList:"⏳ Building…", viewList:"View list", selectAll:"Select all",
+    mealsSelected:"meal selected", mealsSelectedP:"meals selected",
+    step1title:"Plan your week.", step1em:"Eat well.",
+    step1q:"What would you like to plan?",
+    dinnerOnly:"Dinner Only", dinnerOnlySub:"Evening meals",
+    allMeals:"All Meals", allMealsSub:"Breakfast, lunch & dinner",
+    custom:"Custom", customSub:"Choose meal types",
+    mealTypes:"Meal types",
+    step2title:"Which days", step2em:"do you need meals?",
+    step2hint:"Tap to toggle. We'll only plan the days you select.",
+    selectDays:"Select days", all7:"All 7", weekdays:"Weekdays", weekend:"Weekend",
+    step3title:"Cuisine", step3em:"preferences",
+    step3hint:"Choose cuisines to plan from. Leave blank for maximum variety.",
+    selectFavourites:"Select your favourites", addCustomCuisine:"Add a custom cuisine",
+    cuisinePlaceholder:"e.g. Georgian, Peruvian, Korean…", add:"Add",
+    step4title:"Dietary", step4em:"requirements",
+    step4hint:"Any restrictions we should keep out of the plan?",
+    selectAllThat:"Select all that apply",
+    step5title:"Your culinary", step5em:"personality",
+    step5hint:"Set your adventure level, complexity, and any must-have meals.",
+    adventureLevel:"Adventure level", classics:"🏠 Classics", surprises:"🌏 Surprises",
+    safe:"Safe & familiar", balanced:"Balanced mix", wild:"Wild & adventurous",
+    dishComplexity:"Dish complexity",
+    lockFavourites:"Lock in favourites (optional)",
+    lockFavHint:"Name dishes you love — we'll make sure they land in the plan.",
+    favPlaceholder:"e.g. Chicken tikka, borscht…",
+    step6title:"Weekly", step6em:"food budget",
+    step6hint:"Set a grocery budget and we'll keep meals within range. Optional.",
+    enableBudget:"Enable budget planning", yes:"Yes", skip:"Skip",
+    currency:"Currency", weeklyBudget:"Weekly grocery budget",
+    budgetPlaceholder:"e.g. 120", perWeek:"per week", noBudget:"No budget — planning purely on taste.",
+    perMeal:"per meal",
+    step7title:"Who are you", step7em:"planning for?",
+    step7hint:"We'll scale ingredients and portions for your household.",
+    adults:"👨‍👩‍👧 Adults", kids:"👧 Kids",
+    kidsDiff:"Kids get different, child-friendly meals", kidsDiffSub:"We'll suggest simpler alternatives alongside adult meals",
+    planningFor:"Planning for", person:"person", people:"people",
+    generating:"Planning your week…", generatingSub:"Usually takes 5–10 seconds…",
+    ingredients:"Ingredients", howToCook:"How to cook", chefsTip:"💡 Chef's tip:",
+    fetchingRecipe:"Fetching recipe…", prep:"🥄 Prep", cook:"🔥 Cook", servings:"serving", servingsP:"servings",
+    replaceWith:"Replace", findingAlts:"Finding alternatives…", noAlts:"No alternatives found.",
+    shoppingListTitle:"🛒 Shopping list", done:"done",
+    allDone:"🎉 All done!", allDoneSub:"Everything is in your basket. Enjoy your meals!",
+    reset:"↺ Reset", copyList:"📋 Copy list", addItem:"Add an item…", addItemBtn:"+ Add",
+    feedback:"💬 Feedback", sendFeedback:"Send feedback",
+    favSaved:"saved favourite", favSavedP:"saved favourites", favRollIn:"— we'll roll them in where they fit.",
+  },
+  es: {
+    hero1:"Planificación semanal de comidas", hero2:"Sabe lo que cenar", hero2em:"cada noche.",
+    hero3:"Planifica tu semana, genera una lista de la compra y descubre nuevas recetas.",
+    planThisWeek:"Planificar esta semana", goPremium:"✦ Premium",
+    home:"← Inicio", back:"← Atrás", continue:"Continuar →", planMyWeek:"Planificar mi semana",
+    calendar:"← Calendario", autoSaved:"Guardado automáticamente",
+    thisWeek:"Esta semana", yourWeeks:"Tus semanas", saved:"Guardado", upcoming:"Próximo",
+    tapToPlan:"Toca para planificar", planAhead:"Planifica antes · evita compras impulsivas",
+    openPlan:"Abrir plan", planAgain:"Planificar de nuevo", open:"Abrir", list:"Lista", replan:"Replanificar", plan:"Planificar",
+    confirm:"Confirmar", cancel:"Cancelar", weekDeleted:"Semana eliminada",
+    alreadyPlanned:"Ya planificado — abrir o planificar de nuevo", notPlanned:"Aún no planificado",
+    shoppingList:"Lista de la compra",
+    yourPlanReady:"Tu plan", yourPlanReadyEm:"está listo.",
+    replanBtn:"↻ Replanificar",
+    planHint:"Toca una tarjeta para añadir · 📖 receta · ☆ favorito · ↻ cambiar",
+    estimatedCost:"Coste semanal estimado",
+    buildList:"Crear lista de la compra", buildingList:"⏳ Creando…", viewList:"Ver lista", selectAll:"Seleccionar todo",
+    mealsSelected:"comida seleccionada", mealsSelectedP:"comidas seleccionadas",
+    step1title:"Planifica tu semana.", step1em:"Come bien.",
+    step1q:"¿Qué quieres planificar?",
+    dinnerOnly:"Solo cena", dinnerOnlySub:"Comidas vespertinas",
+    allMeals:"Todas las comidas", allMealsSub:"Desayuno, almuerzo y cena",
+    custom:"Personalizar", customSub:"Elige los tipos de comida",
+    mealTypes:"Tipos de comida",
+    step2title:"¿Qué días", step2em:"necesitas comidas?",
+    step2hint:"Toca para alternar. Solo planificaremos los días que selecciones.",
+    selectDays:"Seleccionar días", all7:"Los 7", weekdays:"Días laborables", weekend:"Fin de semana",
+    step3title:"Preferencias", step3em:"de cocina",
+    step3hint:"Elige cocinas para planificar. Déjalo vacío para máxima variedad.",
+    selectFavourites:"Selecciona tus favoritas", addCustomCuisine:"Añadir cocina personalizada",
+    cuisinePlaceholder:"p.ej. Georgiana, Peruana, Coreana…", add:"Añadir",
+    step4title:"Requisitos", step4em:"dietéticos",
+    step4hint:"¿Hay restricciones que debamos excluir del plan?",
+    selectAllThat:"Selecciona todas las que apliquen",
+    step5title:"Tu personalidad", step5em:"culinaria",
+    step5hint:"Establece tu nivel de aventura, complejidad y platos favoritos.",
+    adventureLevel:"Nivel de aventura", classics:"🏠 Clásicos", surprises:"🌏 Sorpresas",
+    safe:"Seguro y familiar", balanced:"Mezcla equilibrada", wild:"Salvaje y aventurero",
+    dishComplexity:"Complejidad del plato",
+    lockFavourites:"Fijar favoritos (opcional)",
+    lockFavHint:"Nombra los platos que te encantan — nos aseguraremos de incluirlos.",
+    favPlaceholder:"p.ej. Tikka de pollo, borsch…",
+    step6title:"Presupuesto", step6em:"semanal de comida",
+    step6hint:"Establece un presupuesto y mantendremos las comidas dentro del rango.",
+    enableBudget:"Activar planificación de presupuesto", yes:"Sí", skip:"Omitir",
+    currency:"Moneda", weeklyBudget:"Presupuesto semanal de compras",
+    budgetPlaceholder:"p.ej. 120", perWeek:"por semana", noBudget:"Sin presupuesto — planificando solo por sabor.",
+    perMeal:"por comida",
+    step7title:"¿Para quién", step7em:"estás planificando?",
+    step7hint:"Ajustaremos los ingredientes y porciones para tu hogar.",
+    adults:"👨‍👩‍👧 Adultos", kids:"👧 Niños",
+    kidsDiff:"Los niños reciben comidas diferentes adaptadas", kidsDiffSub:"Sugeriremos alternativas más sencillas junto a las comidas de adultos",
+    planningFor:"Planificando para", person:"persona", people:"personas",
+    generating:"Planificando tu semana…", generatingSub:"Suele tardar entre 5 y 10 segundos…",
+    ingredients:"Ingredientes", howToCook:"Cómo cocinar", chefsTip:"💡 Consejo del chef:",
+    fetchingRecipe:"Cargando receta…", prep:"🥄 Prep", cook:"🔥 Cocción", servings:"porción", servingsP:"porciones",
+    replaceWith:"Reemplazar", findingAlts:"Buscando alternativas…", noAlts:"No se encontraron alternativas.",
+    shoppingListTitle:"🛒 Lista de la compra", done:"hecho",
+    allDone:"🎉 ¡Todo listo!", allDoneSub:"Todo en la cesta. ¡Que aproveche!",
+    reset:"↺ Restablecer", copyList:"📋 Copiar lista", addItem:"Añadir un artículo…", addItemBtn:"+ Añadir",
+    feedback:"💬 Comentarios", sendFeedback:"Enviar comentarios",
+    favSaved:"favorito guardado", favSavedP:"favoritos guardados", favRollIn:"— los incluiremos donde encajen.",
+  },
 };
 function langPrefix(lang) {
   if (!lang || lang === "en") return "";
@@ -839,6 +968,7 @@ export default function App() {
   const canRoll = isPro || rleft > 0;
   const selDays = (prefs.days || DAYS).filter(d => DAYS.includes(d));
   const sp = (k, v) => setPrefs(p => ({ ...p, [k]: v }));
+  const t = key => (UI[prefs.lang]?.[key] ?? UI.en[key] ?? key);
   const pop = msg => { setToast(msg); setShowToast(true); setTimeout(() => setShowToast(false), 2800); };
 
   // boot
@@ -1251,13 +1381,13 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         {/* Hero */}
         <div className="land-hero">
           <img src="/logo.png" alt="DishRoll" className="land-logo" />
-          <div className="land-tagline">Weekly meal planning</div>
-          <div className="land-h1">Know what's for<br /><em>dinner every night.</em></div>
-          <p className="land-sub">Plan your week, generate a shopping list, and discover new recipes.</p>
+          <div className="land-tagline">{t("hero1")}</div>
+          <div className="land-h1">{t("hero2")}<br /><em>{t("hero2em")}</em></div>
+          <p className="land-sub">{t("hero3")}</p>
           {!cwd && (
             <div className="land-cta">
-              <button className="land-cta-p" onClick={() => newRoll(ck)}>Plan this week</button>
-              {!isPro && <button className="land-cta-s" onClick={() => setShowPaywall(true)}>✦ Go Premium</button>}
+              <button className="land-cta-p" onClick={() => newRoll(ck)}>{t("planThisWeek")}</button>
+              {!isPro && <button className="land-cta-s" onClick={() => setShowPaywall(true)}>{t("goPremium")}</button>}
             </div>
           )}
         </div>
@@ -1288,9 +1418,9 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
 
         {/* Current week */}
         <div className="cw-card">
-          <div className="cw-eyebrow">This week</div>
+          <div className="cw-eyebrow">{t("thisWeek")}</div>
           <div className="cw-range">{wLabel(ck)}</div>
-          <div className="cw-status">{cwd ? "Already planned — open or plan again" : "Not planned yet"}</div>
+          <div className="cw-status">{cwd ? t("alreadyPlanned") : t("notPlanned")}</div>
           {cwSample.length > 0 && (
             <div className="cw-meal-pills">
               {cwSample.map((n, i) => <span key={i} className="cw-pill">{n}</span>)}
@@ -1298,8 +1428,8 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
             </div>
           )}
           <div className="cw-actions">
-            {cwd && <button className="cw-btn-p" onClick={() => openPlan(ck)}>Open plan</button>}
-            <button className={cwd ? "cw-btn-s" : "cw-btn-p"} onClick={() => newRoll(ck)}>{cwd ? "Plan again" : "Plan this week"}</button>
+            {cwd && <button className="cw-btn-p" onClick={() => openPlan(ck)}>{t("openPlan")}</button>}
+            <button className={cwd ? "cw-btn-s" : "cw-btn-p"} onClick={() => newRoll(ck)}>{cwd ? t("planAgain") : t("planThisWeek")}</button>
           </div>
         </div>
 
@@ -1308,7 +1438,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
           <div className="list-strip" onClick={() => openList(ck)}>
             <div className="ls-left">
               <div className="ls-icon">🛒</div>
-              <div><div className="ls-title">Shopping list</div><div className="ls-sub">{wLabel(ck)}</div></div>
+              <div><div className="ls-title">{t("shoppingList")}</div><div className="ls-sub">{wLabel(ck)}</div></div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {li > 0 && <span className="ls-prog">{ld}/{li} done</span>}
@@ -1318,28 +1448,28 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         )}
 
         {/* Week timeline */}
-        <div className="wt-title">Your weeks</div>
+        <div className="wt-title">{t("yourWeeks")}</div>
         <div className="wt-scroll" style={{ marginBottom: 28 }}>
           {ckKeys.map(key => {
             const d = loadWk(key); const isC = isCW(key); const isF = isFW(key); const s = sample(d);
             const cls = ["wk", isC ? "cur" : d ? "has" : "empty"].join(" ");
             return (
               <div key={key} className={cls} onClick={() => d && !isF && openPlan(key)}>
-                {isC && <span className="wk-badge now">This week</span>}
-                {!isC && d && <span className="wk-badge saved">Saved</span>}
+                {isC && <span className="wk-badge now">{t("thisWeek")}</span>}
+                {!isC && d && <span className="wk-badge saved">{t("saved")}</span>}
                 <div className="wk-dot" />
-                <div className="wk-lbl">{isF ? "Upcoming" : isC ? "Current" : new Date(key + "T00:00:00").toLocaleDateString("en-IE", { month: "short", year: "numeric" })}</div>
+                <div className="wk-lbl">{isF ? t("upcoming") : isC ? "Current" : new Date(key + "T00:00:00").toLocaleDateString("en-IE", { month: "short", year: "numeric" })}</div>
                 <div className="wk-dates">
                   {(() => { const m = new Date(key + "T00:00:00"); const s2 = new Date(m); s2.setDate(m.getDate() + 6); const f = d2 => d2.toLocaleDateString("en-IE", { day: "numeric", month: "short" }); return `${f(m)} – ${f(s2)}`; })()}
                 </div>
                 {d && s.length > 0 && <div className="wk-meals">{s.map((n, i) => <div key={i} className="wk-meal">{n}</div>)}</div>}
-                {!d && <div className="wk-empty-txt">{isF ? "Plan ahead · skip impulse buys" : "Tap to plan"}</div>}
+                {!d && <div className="wk-empty-txt">{isF ? t("planAhead") : t("tapToPlan")}</div>}
                 <div className="wk-acts" onClick={e => e.stopPropagation()}>
-                  {d && <button className="wk-btn pri" onClick={() => openPlan(key)}>Open</button>}
-                  {d?.sl && <button className="wk-btn" onClick={() => openList(key)}>List</button>}
-                  <button className="wk-btn" onClick={() => newRoll(key)}>{d ? "Re-plan" : "Plan"}</button>
+                  {d && <button className="wk-btn pri" onClick={() => openPlan(key)}>{t("open")}</button>}
+                  {d?.sl && <button className="wk-btn" onClick={() => openList(key)}>{t("list")}</button>}
+                  <button className="wk-btn" onClick={() => newRoll(key)}>{d ? t("replan") : t("plan")}</button>
                   {d && cdel !== key && <button className="wk-btn" style={{ color: "#b04020", borderColor: "#e0a898" }} onClick={() => setCdel(key)}>✕</button>}
-                  {d && cdel === key && <><button className="wk-btn" style={{ color: "#b04020", borderColor: "#b04020" }} onClick={() => { delWk(key); setCdel(null); pop("Week deleted"); setStep(s => s); }}>Confirm</button><button className="wk-btn" onClick={() => setCdel(null)}>Cancel</button></>}
+                  {d && cdel === key && <><button className="wk-btn" style={{ color: "#b04020", borderColor: "#b04020" }} onClick={() => { delWk(key); setCdel(null); pop(t("weekDeleted")); setStep(s => s); }}>{t("confirm")}</button><button className="wk-btn" onClick={() => setCdel(null)}>{t("cancel")}</button></>}
                 </div>
               </div>
             );
@@ -1417,7 +1547,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
           <div className="recipe-body">
             {meal.ingredients && meal.ingredients.length > 0 && (
               <>
-                <div className="recipe-section">Ingredients — {srv} serving{srv !== 1 ? "s" : ""}</div>
+                <div className="recipe-section">{t("ingredients")} — {srv} {srv !== 1 ? t("servingsP") : t("servings")}</div>
                 {meal.ingredients.map((ing, i) => (
                   <div key={i} className="recipe-ing"><div className="recipe-dot" />{ing}</div>
                 ))}
@@ -1429,9 +1559,9 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                 <div className="kids-alt-name">{typeof meal.kidsAlt === "object" ? meal.kidsAlt.name : meal.kidsAlt} →</div>
               </div>
             )}
-            <div className="recipe-section">How to cook</div>
+            <div className="recipe-section">{t("howToCook")}</div>
             {stepsLd
-              ? <div className="recipe-loading"><div className="spin-ring" /><span>Fetching recipe…</span></div>
+              ? <div className="recipe-loading"><div className="spin-ring" /><span>{t("fetchingRecipe")}</span></div>
               : <div>
                   {steps.map((s, i) => (
                     <div key={i} className="recipe-step">
@@ -1439,7 +1569,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                       <div className="recipe-step-txt">{s}</div>
                     </div>
                   ))}
-                  {tip && <div className="recipe-tip">💡 <strong>Chef's tip:</strong> {tip}</div>}
+                  {tip && <div className="recipe-tip">{t("chefsTip")} {tip}</div>}
                 </div>
             }
           </div>
@@ -1455,12 +1585,12 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
     return (
       <div className="modal-overlay" onClick={() => setSwap(null)}>
         <div className="modal-box" onClick={e => e.stopPropagation()}>
-          <div className="modal-title">Replace {swap.mt}</div>
+          <div className="modal-title">{t("replaceWith")} {swap.mt}</div>
           <div className="modal-sub">{swap.day} · <strong>{cur?.name}</strong></div>
           {swapLd
-            ? <div className="swap-loading"><div className="swap-loading-icon">🍽️</div><div style={{ fontSize: 13, color: "#6a7a5a", marginTop: 9 }}>Finding alternatives…</div></div>
+            ? <div className="swap-loading"><div className="swap-loading-icon">🍽️</div><div style={{ fontSize: 13, color: "#6a7a5a", marginTop: 9 }}>{t("findingAlts")}</div></div>
             : swapOpts.length === 0
-              ? <div style={{ color: "#6a7a5a", fontSize: 13, padding: "10px 0" }}>No alternatives found.</div>
+              ? <div style={{ color: "#6a7a5a", fontSize: 13, padding: "10px 0" }}>{t("noAlts")}</div>
               : swapOpts.map((o, i) => (
                   <div key={i} className="swap-opt" onClick={() => applySwap(o)}>
                     <div className="swap-name">{o.name}</div>
@@ -1469,7 +1599,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                   </div>
                 ))
           }
-          <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={() => setSwap(null)}>Cancel</button>
+          <button className="btn btn-ghost btn-sm" style={{ marginTop: 10 }} onClick={() => setSwap(null)}>{t("cancel")}</button>
         </div>
       </div>
     );
@@ -1688,18 +1818,18 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
       <div>
         <div className="list-hero">
           <div className="list-hero-top">
-            <div><div className="list-title">🛒 Shopping list</div><div className="list-range">{awk ? wLabel(awk) : ""}</div></div>
-            <button className="btn btn-ghost btn-sm" style={{ color: "rgba(255,255,255,.8)", borderColor: "rgba(255,255,255,.3)", background: "rgba(255,255,255,.1)" }} onClick={() => setStep(plan ? "mealplan" : "landing")}>← {plan ? "Plan" : "Home"}</button>
+            <div><div className="list-title">{t("shoppingListTitle")}</div><div className="list-range">{awk ? wLabel(awk) : ""}</div></div>
+            <button className="btn btn-ghost btn-sm" style={{ color: "rgba(255,255,255,.8)", borderColor: "rgba(255,255,255,.3)", background: "rgba(255,255,255,.1)" }} onClick={() => setStep(plan ? "mealplan" : "landing")}>← {plan ? t("plan") : t("home").replace("← ","")}</button>
           </div>
           <div className="list-prog-track"><div className="list-prog-fill" style={{ width: totalItems > 0 ? `${Math.round((doneCount / totalItems) * 100)}%` : "0%" }} /></div>
           <div className="list-prog-txt"><span>{doneCount} of {totalItems} items</span><span>{totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0}% done</span></div>
           <div className="list-actions">
-            <button className="list-act-btn" onClick={() => { setTicked(new Set()); persist(plan, costs, sl, new Set(), custom, kPicked); pop("All items unmarked"); }}>↺ Reset</button>
-            <button className="list-act-btn" onClick={() => { const txt = sl.categories.map(c => `${c.name}:\n${c.items.map(i => "• " + i).join("\n")}`).join("\n\n") + (custom.length ? "\nMy additions:\n" + custom.map(c => "• " + c.text).join("\n") : ""); navigator.clipboard.writeText(txt); pop("List copied"); }}>📋 Copy list</button>
+            <button className="list-act-btn" onClick={() => { setTicked(new Set()); persist(plan, costs, sl, new Set(), custom, kPicked); pop("All items unmarked"); }}>{t("reset")}</button>
+            <button className="list-act-btn" onClick={() => { const txt = sl.categories.map(c => `${c.name}:\n${c.items.map(i => "• " + i).join("\n")}`).join("\n\n") + (custom.length ? "\nMy additions:\n" + custom.map(c => "• " + c.text).join("\n") : ""); navigator.clipboard.writeText(txt); pop("List copied"); }}>{t("copyList")}</button>
             <button className="list-act-btn" onClick={() => setStep("landing")}>🏠 Home</button>
           </div>
         </div>
-        {allDone && <div className="all-done"><div className="all-done-icon">🎉</div><div className="all-done-title">All done!</div><div className="all-done-sub">Everything is in your basket. Enjoy your meals!</div></div>}
+        {allDone && <div className="all-done"><div className="all-done-icon">🎉</div><div className="all-done-title">{t("allDone")}</div><div className="all-done-sub">{t("allDoneSub")}</div></div>}
         {cats.map(cat => {
           const items = cat._custom ? custom : cat.items.map(i => ({ id: i, text: i }));
           if (items.length === 0) return null;
@@ -1723,8 +1853,8 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
           );
         })}
         <div className="add-row">
-          <input className="add-inp" placeholder="Add an item…" value={addTxt} onChange={e => setAddTxt(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && addTxt.trim()) { const nc = [...custom, { id: "c-" + Date.now(), text: addTxt.trim() }]; setCustom(nc); setAddTxt(""); persist(plan, costs, sl, ticked, nc, kPicked); } }} />
-          <button className="add-btn" onClick={() => { if (addTxt.trim()) { const nc = [...custom, { id: "c-" + Date.now(), text: addTxt.trim() }]; setCustom(nc); setAddTxt(""); persist(plan, costs, sl, ticked, nc, kPicked); } }}>+ Add</button>
+          <input className="add-inp" placeholder={t("addItem")} value={addTxt} onChange={e => setAddTxt(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && addTxt.trim()) { const nc = [...custom, { id: "c-" + Date.now(), text: addTxt.trim() }]; setCustom(nc); setAddTxt(""); persist(plan, costs, sl, ticked, nc, kPicked); } }} />
+          <button className="add-btn" onClick={() => { if (addTxt.trim()) { const nc = [...custom, { id: "c-" + Date.now(), text: addTxt.trim() }]; setCustom(nc); setAddTxt(""); persist(plan, costs, sl, ticked, nc, kPicked); } }}>{t("addItemBtn")}</button>
         </div>
       </div>
     );
@@ -1789,8 +1919,8 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                 </div>
               )}
             </div>
-            {sl && step !== "list" && <button className="btn btn-ghost btn-sm" style={{color:"#fff",borderColor:"rgba(255,165,0,.7)",background:"rgba(196,98,45,.55)",fontWeight:700}} onClick={() => setStep("list")}>🛒<span style={{marginLeft:4}}>List{doneCount > 0 ? ` (${doneCount}/${totalItems})` : ""}</span></button>}
-            {step !== "landing" && step !== "generating" && <button className="btn btn-ghost btn-sm" style={{color:"rgba(255,255,255,.9)",borderColor:"rgba(255,255,255,.35)",background:"rgba(255,255,255,.1)"}} onClick={() => setStep("landing")}>← Home</button>}
+            {sl && step !== "list" && <button className="btn btn-ghost btn-sm" style={{color:"#fff",borderColor:"rgba(255,165,0,.7)",background:"rgba(196,98,45,.55)",fontWeight:700}} onClick={() => setStep("list")}>🛒<span style={{marginLeft:4}}>{t("list")}{doneCount > 0 ? ` (${doneCount}/${totalItems})` : ""}</span></button>}
+            {step !== "landing" && step !== "generating" && <button className="btn btn-ghost btn-sm" style={{color:"rgba(255,255,255,.9)",borderColor:"rgba(255,255,255,.35)",background:"rgba(255,255,255,.1)"}} onClick={() => setStep("landing")}>{t("home")}</button>}
           </div>
         </div>
 
@@ -1808,8 +1938,8 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
           {/* Week context */}
           {awk && step === "mealplan" && (
             <div className="wk-ctx">
-              <span>{isCW(awk) ? "📅 This week" : "📅 " + wLabel(awk)} · Auto-saved</span>
-              <button className="btn btn-ghost btn-sm" onClick={() => setStep("landing")}>← Calendar</button>
+              <span>{isCW(awk) ? "📅 " + t("thisWeek") : "📅 " + wLabel(awk)} · {t("autoSaved")}</span>
+              <button className="btn btn-ghost btn-sm" onClick={() => setStep("landing")}>{t("calendar")}</button>
             </div>
           )}
 
@@ -1817,13 +1947,13 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
           {step === "welcome" && (
             <div>
               <div style={{ textAlign: "center", paddingTop: 10, marginBottom: 24 }}>
-                <div className="page-title">Plan your week.<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>Eat well.</span></div>
+                <div className="page-title">{t("step1title")}<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>{t("step1em")}</span></div>
                 {awk && <p style={{ fontSize: 13, color: "#5a6a4a", marginTop: 6 }}>📅 {wLabel(awk)}</p>}
               </div>
               <div className="card">
-                <div className="label">What would you like to plan?</div>
+                <div className="label">{t("step1q")}</div>
                 <div className="mt-grid">
-                  {[{ id:"dinner", icon:"🌙", label:"Dinner Only", sub:"Evening meals" }, { id:"all", icon:"☀️", label:"All Meals", sub:"Breakfast, lunch & dinner" }, { id:"custom", icon:"✏️", label:"Custom", sub:"Choose meal types" }].map(o => (
+                  {[{ id:"dinner", icon:"🌙", label:t("dinnerOnly"), sub:t("dinnerOnlySub") }, { id:"all", icon:"☀️", label:t("allMeals"), sub:t("allMealsSub") }, { id:"custom", icon:"✏️", label:t("custom"), sub:t("customSub") }].map(o => (
                     <div key={o.id} className={`mt-card${prefs.scope === o.id ? " sel" : ""}`} onClick={() => setScope(o.id)}>
                       <div className="mt-icon">{o.icon}</div><div className="mt-label">{o.label}</div><div className="mt-sub">{o.sub}</div>
                     </div>
@@ -1831,23 +1961,23 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                 </div>
                 {prefs.scope === "custom" && (
                   <div style={{ marginTop: 13 }}>
-                    <div className="label">Meal types</div>
+                    <div className="label">{t("mealTypes")}</div>
                     <div className="chip-group">{["breakfast","lunch","dinner"].map(t => <div key={t} className={`chip${prefs.types.includes(t) ? " sel" : ""}`} onClick={() => toggleType(t)} style={{ textTransform: "capitalize" }}>{ML[t]}</div>)}</div>
                   </div>
                 )}
               </div>
-              {favs.length > 0 && <div className="notice">⭐ {favs.length} saved favourite{favs.length > 1 ? "s" : ""} — we'll roll them in where they fit.</div>}
-              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("landing")}>← Back</button><button className="btn btn-primary" onClick={() => setStep("days")}>Continue →</button></div>
+              {favs.length > 0 && <div className="notice">⭐ {favs.length} {favs.length > 1 ? t("favSavedP") : t("favSaved")} {t("favRollIn")}</div>}
+              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("landing")}>{t("back")}</button><button className="btn btn-primary" onClick={() => setStep("days")}>{t("continue")}</button></div>
             </div>
           )}
 
           {/* DAYS */}
           {step === "days" && (
             <div>
-              <div className="page-title">Which days<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>do you need meals?</span></div>
-              <p className="page-sub">Tap to toggle. We'll only plan the days you select.</p>
+              <div className="page-title">{t("step2title")}<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>{t("step2em")}</span></div>
+              <p className="page-sub">{t("step2hint")}</p>
               <div className="card">
-                <div className="label">Select days — {selDays.length} of 7</div>
+                <div className="label">{t("selectDays")} — {selDays.length} of 7</div>
                 <div className="day-grid">
                   {DAYS.map(d => (
                     <div key={d} className={`day-chip${selDays.includes(d) ? " sel" : ""}`} onClick={() => toggleDay(d)}>
@@ -1857,22 +1987,22 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                   ))}
                 </div>
                 <div style={{ display: "flex", gap: 7, marginTop: 11 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => sp("days", [...DAYS])}>All 7</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => sp("days", ["Monday","Tuesday","Wednesday","Thursday","Friday"])}>Weekdays</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => sp("days", ["Saturday","Sunday"])}>Weekend</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => sp("days", [...DAYS])}>{t("all7")}</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => sp("days", ["Monday","Tuesday","Wednesday","Thursday","Friday"])}>{t("weekdays")}</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => sp("days", ["Saturday","Sunday"])}>{t("weekend")}</button>
                 </div>
               </div>
-              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("welcome")}>← Back</button><button className="btn btn-primary" onClick={() => setStep("cuisines")} disabled={selDays.length === 0}>Continue →</button></div>
+              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("welcome")}>{t("back")}</button><button className="btn btn-primary" onClick={() => setStep("cuisines")} disabled={selDays.length === 0}>{t("continue")}</button></div>
             </div>
           )}
 
           {/* CUISINES */}
           {step === "cuisines" && (
             <div>
-              <div className="page-title">Cuisine<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>preferences</span></div>
-              <p className="page-sub">Choose cuisines to plan from. Leave blank for maximum variety.</p>
+              <div className="page-title">{t("step3title")}<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>{t("step3em")}</span></div>
+              <p className="page-sub">{t("step3hint")}</p>
               <div className="card">
-                <div className="label">Select your favourites</div>
+                <div className="label">{t("selectFavourites")}</div>
                 <div className="chip-group">{CUISINES.map(c => <div key={c} className={`chip${prefs.cuisines.includes(c) ? " sel" : ""}`} onClick={() => { const n = prefs.cuisines.includes(c) ? prefs.cuisines.filter(x => x !== c) : [...prefs.cuisines, c]; sp("cuisines", n); }}>{c}</div>)}</div>
                 {prefs.cuisines.filter(c => !CUISINES.includes(c)).map(c => (
                   <div key={c} className="chip sel" style={{display:"inline-flex",alignItems:"center",gap:6}}>
@@ -1882,11 +2012,11 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                 ))}
               </div>
               <div className="card" style={{marginTop:0}}>
-                <div className="label">Add a custom cuisine</div>
+                <div className="label">{t("addCustomCuisine")}</div>
                 <div style={{display:"flex",gap:9,alignItems:"center"}}>
                   <input
                     className="inp"
-                    placeholder="e.g. Georgian, Peruvian, Korean…"
+                    placeholder={t("cuisinePlaceholder")}
                     value={prefs.cusInput||""}
                     onChange={e => sp("cusInput", e.target.value)}
                     onKeyDown={e => {
@@ -1902,86 +2032,86 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                     const val = (prefs.cusInput||"").trim();
                     if(val && !prefs.cuisines.includes(val)) sp("cuisines", [...prefs.cuisines, val]);
                     sp("cusInput","");
-                  }}>Add</button>
+                  }}}>{t("add")}</button>
                 </div>
               </div>
-              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("days")}>← Back</button><button className="btn btn-primary" onClick={() => setStep("dietary")}>Continue →</button></div>
+              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("days")}>{t("back")}</button><button className="btn btn-primary" onClick={() => setStep("dietary")}>{t("continue")}</button></div>
             </div>
           )}
 
           {/* DIETARY */}
           {step === "dietary" && (
             <div>
-              <div className="page-title">Dietary<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>requirements</span></div>
-              <p className="page-sub">Any restrictions we should keep out of the plan?</p>
+              <div className="page-title">{t("step4title")}<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>{t("step4em")}</span></div>
+              <p className="page-sub">{t("step4hint")}</p>
               <div className="card">
-                <div className="label">Select all that apply</div>
+                <div className="label">{t("selectAllThat")}</div>
                 <div className="chip-group">{DIETARY.map(d => <div key={d} className={`chip${prefs.dietary.includes(d) ? " alt" : ""}`} onClick={() => { const n = prefs.dietary.includes(d) ? prefs.dietary.filter(x => x !== d) : [...prefs.dietary, d]; sp("dietary", n); }}>{d}</div>)}</div>
               </div>
-              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("cuisines")}>← Back</button><button className="btn btn-primary" onClick={() => setStep("vibe")}>Continue →</button></div>
+              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("cuisines")}>{t("back")}</button><button className="btn btn-primary" onClick={() => setStep("vibe")}>{t("continue")}</button></div>
             </div>
           )}
 
           {/* VIBE — inlined (has range input) */}
           {step === "vibe" && (
             <div>
-              <div className="page-title">Your culinary<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>personality</span></div>
-              <p className="page-sub">Set your adventure level, complexity, and any must-have meals.</p>
+              <div className="page-title">{t("step5title")}<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>{t("step5em")}</span></div>
+              <p className="page-sub">{t("step5hint")}</p>
               <div className="card">
-                <div className="label">Adventure level</div>
+                <div className="label">{t("adventureLevel")}</div>
                 <input type="range" min={0} max={100} value={prefs.adventure} onChange={e => sp("adventure", +e.target.value)} className="slider" />
-                <div className="var-ends"><span>🏠 Classics</span><span style={{ fontWeight: 600, color: "#c4622d" }}>{prefs.adventure < 33 ? "Safe & familiar" : prefs.adventure < 66 ? "Balanced mix" : "Wild & adventurous"}</span><span>🌏 Surprises</span></div>
+                <div className="var-ends"><span>{t("classics")}</span><span style={{ fontWeight: 600, color: "#c4622d" }}>{prefs.adventure < 33 ? t("safe") : prefs.adventure < 66 ? t("balanced") : t("wild")}</span><span>{t("surprises")}</span></div>
               </div>
               <div className="card">
-                <div className="label">Dish complexity</div>
+                <div className="label">{t("dishComplexity")}</div>
                 <div className="cx-grid">{COMPLEXITY.map(o => <div key={o.id} className={`cx-card${prefs.complexity === o.id ? " sel" : ""}`} onClick={() => sp("complexity", o.id)}><div className="cx-label">{o.label}</div><div className="cx-sub">{o.sub}</div></div>)}</div>
               </div>
               <div className="card">
-                <div className="label">Lock in favourites (optional)</div>
-                <p className="hint">Name dishes you love — we'll make sure they land in the plan.</p>
+                <div className="label">{t("lockFavourites")}</div>
+                <p className="hint">{t("lockFavHint")}</p>
                 <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                  <input className="inp" placeholder="e.g. Chicken tikka, borscht…" value={prefs.favInput} onChange={e => sp("favInput", e.target.value)} onKeyDown={e => e.key === "Enter" && addFavMeal()} style={{ flex: 1 }} />
-                  <button className="btn btn-ghost btn-sm" onClick={addFavMeal}>Add</button>
+                  <input className="inp" placeholder={t("favPlaceholder")} value={prefs.favInput} onChange={e => sp("favInput", e.target.value)} onKeyDown={e => e.key === "Enter" && addFavMeal()} style={{ flex: 1 }} />
+                  <button className="btn btn-ghost btn-sm" onClick={addFavMeal}>{t("add")}</button>
                 </div>
                 <div className="chip-group">{prefs.favMeals.map((m, i) => <div key={i} className="tag">{m}<button onClick={() => sp("favMeals", prefs.favMeals.filter((_, j) => j !== i))}>×</button></div>)}</div>
               </div>
-              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("dietary")}>← Back</button><button className="btn btn-primary" onClick={() => setStep("budget")}>Continue →</button></div>
+              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("dietary")}>{t("back")}</button><button className="btn btn-primary" onClick={() => setStep("budget")}>{t("continue")}</button></div>
             </div>
           )}
 
           {/* BUDGET — inlined (has number input) */}
           {step === "budget" && (
             <div>
-              <div className="page-title">Weekly<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>food budget</span></div>
-              <p className="page-sub">Set a grocery budget and we'll keep meals within range. Optional.</p>
+              <div className="page-title">{t("step6title")}<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>{t("step6em")}</span></div>
+              <p className="page-sub">{t("step6hint")}</p>
               <div className="card">
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                  <div className="label" style={{ margin: 0 }}>Enable budget planning</div>
-                  <div style={{ display: "flex", gap: 8 }}>{[{ v: true, l: "Yes" }, { v: false, l: "Skip" }].map(o => <div key={String(o.v)} className={`chip${prefs.budgetOn === o.v ? " sel" : ""}`} onClick={() => sp("budgetOn", o.v)}>{o.l}</div>)}</div>
+                  <div className="label" style={{ margin: 0 }}>{t("enableBudget")}</div>
+                  <div style={{ display: "flex", gap: 8 }}>{[{ v: true, l: t("yes") }, { v: false, l: t("skip") }].map(o => <div key={String(o.v)} className={`chip${prefs.budgetOn === o.v ? " sel" : ""}`} onClick={() => sp("budgetOn", o.v)}>{o.l}</div>)}</div>
                 </div>
                 {prefs.budgetOn ? (
                   <>
-                    <div className="label">Currency</div>
+                    <div className="label">{t("currency")}</div>
                     <div className="cur-row">{Object.entries(CURRENCY).map(([c, s]) => <div key={c} className={`cur-chip${prefs.currency === c ? " sel" : ""}`} onClick={() => sp("currency", c)}>{s} {c}</div>)}</div>
-                    <div className="label">Weekly grocery budget</div>
-                    <div className="brow"><div className="bwrap"><span className="bpfx">{sym}</span><input className="inp b-inp" type="number" min="0" placeholder="e.g. 120" value={prefs.budget} onChange={e => sp("budget", e.target.value)} /></div><span style={{ fontSize: 12, color: "#6a7a5a", whiteSpace: "nowrap" }}>per week · {tsrv} person{tsrv > 1 ? "s" : ""}</span></div>
-                    {prefs.budget && <p style={{ fontSize: 12, color: "#4a8868", marginTop: 7 }}>≈ {sym}{(parseFloat(prefs.budget) / (selDays.length * prefs.types.length)).toFixed(1)} per meal</p>}
+                    <div className="label">{t("weeklyBudget")}</div>
+                    <div className="brow"><div className="bwrap"><span className="bpfx">{sym}</span><input className="inp b-inp" type="number" min="0" placeholder={t("budgetPlaceholder")} value={prefs.budget} onChange={e => sp("budget", e.target.value)} /></div><span style={{ fontSize: 12, color: "#6a7a5a", whiteSpace: "nowrap" }}>{t("perWeek")} · {tsrv} {tsrv > 1 ? t("people") : t("person")}</span></div>
+                    {prefs.budget && <p style={{ fontSize: 12, color: "#4a8868", marginTop: 7 }}>≈ {sym}{(parseFloat(prefs.budget) / (selDays.length * prefs.types.length)).toFixed(1)} {t("perMeal")}</p>}
                   </>
-                ) : <p style={{ fontSize: 13, color: "#7a8a6a", fontStyle: "italic" }}>No budget — planning purely on taste.</p>}
+                ) : <p style={{ fontSize: 13, color: "#7a8a6a", fontStyle: "italic" }}>{t("noBudget")}</p>}
               </div>
-              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("vibe")}>← Back</button><button className="btn btn-primary" onClick={() => setStep("servings")}>Continue →</button></div>
+              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("vibe")}>{t("back")}</button><button className="btn btn-primary" onClick={() => setStep("servings")}>{t("continue")}</button></div>
             </div>
           )}
 
           {/* SERVINGS — inlined (has counters) */}
           {step === "servings" && (
             <div>
-              <div className="page-title">Who are you<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>planning for?</span></div>
-              <p className="page-sub">We'll scale ingredients and portions for your household.</p>
+              <div className="page-title">{t("step7title")}<br /><span style={{ color: "#c4622d", fontStyle: "italic" }}>{t("step7em")}</span></div>
+              <p className="page-sub">{t("step7hint")}</p>
               <div className="card">
                 <div className="people-row">
                   <div className="people-box">
-                    <div className="people-lbl">👨‍👩‍👧 Adults</div>
+                    <div className="people-lbl">{t("adults")}</div>
                     <div className="ctr">
                       <button className="ctr-btn" onClick={() => prefs.adults > 1 && sp("adults", prefs.adults - 1)} disabled={prefs.adults <= 1}>−</button>
                       <div className="ctr-num">{prefs.adults}</div>
@@ -1989,7 +2119,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                     </div>
                   </div>
                   <div className="people-box">
-                    <div className="people-lbl">👧 Kids</div>
+                    <div className="people-lbl">{t("kids")}</div>
                     <div className="ctr">
                       <button className="ctr-btn" onClick={() => prefs.kids > 0 && sp("kids", prefs.kids - 1)} disabled={prefs.kids <= 0}>−</button>
                       <div className="ctr-num">{prefs.kids}</div>
@@ -2000,15 +2130,15 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                 {prefs.kids > 0 && (
                   <div className={`kids-toggle${prefs.kidsDiff ? " on" : ""}`} onClick={() => sp("kidsDiff", !prefs.kidsDiff)}>
                     <div className="toggle-box">{prefs.kidsDiff ? "✓" : ""}</div>
-                    <div><div className="toggle-txt">Kids get different, child-friendly meals</div><div className="toggle-sub">We'll suggest simpler alternatives alongside adult meals</div></div>
+                    <div><div className="toggle-txt">{t("kidsDiff")}</div><div className="toggle-sub">{t("kidsDiffSub")}</div></div>
                   </div>
                 )}
                 <div style={{ marginTop: 11, padding: "8px 12px", background: "#f8f5ee", borderRadius: 9, fontSize: 13, color: "#5a6a4a" }}>
-                  Planning for <strong style={{ color: "#1a3a1a" }}>{tsrv} {tsrv === 1 ? "person" : "people"}</strong>{prefs.kids > 0 && prefs.kidsDiff ? ` + ${prefs.kids} kids (separate dishes)` : ""}
+                  {t("planningFor")} <strong style={{ color: "#1a3a1a" }}>{tsrv} {tsrv === 1 ? t("person") : t("people")}</strong>{prefs.kids > 0 && prefs.kidsDiff ? ` + ${prefs.kids} kids (separate dishes)` : ""}
                 </div>
               </div>
               {err && <div className="err-box">⚠️ {err}</div>}
-              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("budget")}>← Back</button><button className="btn-roll" onClick={roll}>Plan my week</button></div>
+              <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("budget")}>{t("back")}</button><button className="btn-roll" onClick={roll}>{t("planMyWeek")}</button></div>
             </div>
           )}
 
@@ -2017,7 +2147,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
             <div className="gen-screen">
               <div className="gen-logo"><span>Dish</span><span>Roll</span></div>
               <div className="gen-msg">{waitMsg}</div>
-              <p className="gen-sub">Usually takes 5–10 seconds…</p>
+              <p className="gen-sub">{t("generatingSub")}</p>
             </div>
           )}
 
@@ -2030,20 +2160,20 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                 <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, marginBottom:24 }}>
                   <div>
                     <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:34, fontWeight:600, color:"#1a3a1a", lineHeight:1.1, marginBottom:6 }}>
-                      Your plan<br/><span style={{ color:"#c4622d", fontStyle:"italic" }}>is ready.</span>
+                      {t("yourPlanReady")}<br/><span style={{ color:"#c4622d", fontStyle:"italic" }}>{t("yourPlanReadyEm")}</span>
                     </div>
-                    <p style={{ fontSize:13, color:"#7a8a6a", lineHeight:1.6 }}>Tap a card to add to basket · 📖 for recipe · ☆ to favourite · ↻ to swap</p>
+                    <p style={{ fontSize:13, color:"#7a8a6a", lineHeight:1.6 }}>{t("planHint")}</p>
                   </div>
                   <div style={{ display:"flex", gap:7, flexShrink:0 }}>
                     {sl && <button className="btn btn-ghost btn-sm" onClick={() => setStep("list")}>🛒 List</button>}
-                    <button className="btn btn-ghost btn-sm" onClick={() => newRoll(awk || cWK())}>↻ Re-plan</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => newRoll(awk || cWK())}>{t("replanBtn")}</button>
                   </div>
                 </div>
 
                 {/* Budget summary */}
                 {prefs.budgetOn && Object.keys(costs).length > 0 && (
                   <div className="budget-sum">
-                    <div><div className="budget-lbl">Estimated weekly cost</div><div style={{ fontSize:11, color:"#5a7a5a" }}>{selDays.length} days · {tsrv} servings</div></div>
+                    <div><div className="budget-lbl">{t("estimatedCost")}</div><div style={{ fontSize:11, color:"#5a7a5a" }}>{selDays.length} days · {tsrv} servings</div></div>
                     <div>
                       <div className={`budget-val${overBudget?" budget-over":""}`}>{sym}{totalCost.toFixed(0)}</div>
                       {budget>0&&<div style={{ fontSize:11, color:overBudget?"#b04020":"#4a8868", textAlign:"right" }}>{overBudget?`${sym}${(totalCost-budget).toFixed(0)} over`:`${sym}${(budget-totalCost).toFixed(0)} under`}</div>}
@@ -2134,16 +2264,16 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                     <div className="basket-bar-left">
                       <div className="basket-icon-wrap">🛒</div>
                       <div>
-                        <div className="basket-count">{totalSelected} meal{totalSelected!==1?"s":""} selected</div>
+                        <div className="basket-count">{totalSelected} {totalSelected!==1?t("mealsSelectedP"):t("mealsSelected")}</div>
                         <div className="basket-sub">{picked.size} adult{picked.size!==1?"s":""}{kPicked.size>0?` · ${kPicked.size} kids`:""}</div>
                       </div>
                     </div>
                     <div className="basket-bar-right">
                       {err && <div style={{ fontSize:12, color:"#b04020" }}>⚠️ {err}</div>}
-                      <button className="basket-sel-all" onClick={selectAll}>Select all</button>
-                      {sl && <button className="btn btn-ghost btn-sm" onClick={()=>setStep("list")}>View list</button>}
+                      <button className="basket-sel-all" onClick={selectAll}>{t("selectAll")}</button>
+                      {sl && <button className="btn btn-ghost btn-sm" onClick={()=>setStep("list")}>{t("viewList")}</button>}
                       <button className="basket-build-btn" onClick={buildList} disabled={totalSelected===0||loading}>
-                        {loading?"⏳ Building…":"Build shopping list"}
+                        {loading?t("buildingList"):t("buildList")}
                       </button>
                     </div>
                   </div>
@@ -2163,7 +2293,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
 
         {/* Floating feedback button */}
         <button className="fb-fab" onClick={() => { setFbErr(""); setFbState("idle"); setShowFeedback(true); track("feedback_opened"); }} aria-label="Send feedback">
-          💬 Feedback
+          {t("feedback")}
         </button>
 
         {showToast && <div className="toast">{toast}</div>}
