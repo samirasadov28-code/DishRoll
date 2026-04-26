@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.4.4";
+const APP_VERSION = "0.4.5";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -918,28 +918,34 @@ async function translateMealPlan(plan, lang, selDays, types) {
   const langName = LANG_EN[lang];
   if (!langName) return plan;
   const refs = [];
-  const batch = {};
   selDays.forEach(d => types.forEach(t => {
     const m = plan[d.toLowerCase()]?.[t];
-    if (m) { const i = refs.length; refs.push({ d: d.toLowerCase(), t }); batch[i] = { n: m.name, d: m.description || "", g: m.ingredients || [] }; }
+    if (m) refs.push({ d: d.toLowerCase(), t, n: m.name, desc: m.description || "", g: m.ingredients || [] });
   }));
   if (!refs.length) return plan;
-  const raw = await callAI(
-    `Translate every string value to ${langName}. Return ONLY JSON with identical numeric keys and structure:\n${JSON.stringify(batch)}`,
-    4000
-  );
-  let tr;
-  try { tr = JSON.parse(raw); } catch { return plan; }
   const result = JSON.parse(JSON.stringify(plan));
-  refs.forEach(({ d, t }, i) => {
-    const meal = result[d]?.[t];
-    const v = tr[i];
-    if (meal && v) {
-      if (v.n) meal.name = v.n;
-      if (v.d) meal.description = v.d;
-      if (Array.isArray(v.g) && v.g.length) meal.ingredients = v.g;
-    }
-  });
+  // Translate in batches of 3 meals so each call stays well under the token cap
+  for (let start = 0; start < refs.length; start += 3) {
+    const chunk = refs.slice(start, start + 3);
+    const batchData = {};
+    chunk.forEach((r, i) => { batchData[i] = { n: r.n, d: r.desc, g: r.g }; });
+    try {
+      const raw = await callAI(
+        `Translate every string value to ${langName}. Return ONLY JSON with identical numeric keys and structure:\n${JSON.stringify(batchData)}`,
+        2500
+      );
+      const tr = JSON.parse(raw);
+      chunk.forEach(({ d, t }, i) => {
+        const meal = result[d]?.[t];
+        const v = tr[i];
+        if (meal && v) {
+          if (v.n) meal.name = v.n;
+          if (v.d) meal.description = v.d;
+          if (Array.isArray(v.g) && v.g.length) meal.ingredients = v.g;
+        }
+      });
+    } catch {}
+  }
   return result;
 }
 
@@ -1133,7 +1139,14 @@ async function fetchPhoto(name, mt, ingredients, mainIngredient) {
   // "Shrimp Scampi" → prawn photo — before trying random word-by-word API calls
   if (hasSpecificLocal) return localMatch;
 
-  // Tier 3: word-by-word API search (only reached for truly unrecognised dishes)
+  // Tier 3: mainIngredient is always kept in English by the AI, so the proxy can reliably
+  // match it against TheMealDB even when the meal name is in a non-English language
+  if (mainIngredient) {
+    const p = await tryProxy(mainIngredient);
+    if (p) return p;
+  }
+
+  // Tier 4: word-by-word API search (only reached for truly unrecognised dishes)
   const stopWords = /^(with|and|in|on|of|the|for|à|al|au|en|la)$/i;
   const words = name.split(" ").filter(w => w.length > 3 && !stopWords.test(w));
   for (const w of words) {
@@ -1141,7 +1154,7 @@ async function fetchPhoto(name, mt, ingredients, mainIngredient) {
     if (p) return p;
   }
 
-  // Tier 4: first ingredient word (e.g. "400g chicken thighs" → "chicken")
+  // Tier 5: first ingredient word (e.g. "400g chicken thighs" → "chicken")
   if (ingredients && ingredients.length > 0) {
     const raw = ingredients[0].replace(/^[\d\s.,]+/i, "").trim();
     const ingWord = raw.split(" ").find(w => w.length > 3) || "";
@@ -1151,7 +1164,7 @@ async function fetchPhoto(name, mt, ingredients, mainIngredient) {
     }
   }
 
-  // Tier 5: guaranteed curated fallback (generic food photo)
+  // Tier 6: guaranteed curated fallback (generic food photo)
   return localMatch;
 }
 
@@ -1885,7 +1898,11 @@ export default function App() {
     track("recipe_opened", { meal: meal.name, type: isKids ? "kids" : "adult", mt });
     setRecipe({ meal, mt, variant, steps: [], tip: "", prepTime: "", cookTime: "", difficulty: "", photoUrl: null, photoLd: true, stepsLd: true });
     // Photo: always resolves to something (guaranteed fallback in fetchPhoto)
-    fetchPhoto(meal.name, mt, meal.ingredients, meal.mainIngredient).then(url => setRecipe(p => p ? { ...p, photoUrl: url || photoFallback(meal.name, mt, meal.mainIngredient), photoLd: false } : null));
+    fetchPhoto(meal.name, mt, meal.ingredients, meal.mainIngredient).then(url => {
+      setRecipe(p => (p?.meal?.name === meal.name && p?.mt === mt && p?.variant === variant)
+        ? { ...p, photoUrl: url || photoFallback(meal.name, mt, meal.mainIngredient), photoLd: false }
+        : p);
+    });
     // Recipe: detailed prompt with retry on failure
     const srv = isKids ? prefs.kids : tsrv;
     const prompt = isKids
@@ -1911,7 +1928,9 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
             if (tr.tip) tip = tr.tip;
           } catch {}
         }
-        setRecipe(p => p ? { ...p, steps, tip, prepTime: d.prepTime || "", cookTime: d.cookTime || "", difficulty: d.difficulty || "", stepsLd: false } : null);
+        setRecipe(p => (p?.meal?.name === meal.name && p?.mt === mt && p?.variant === variant)
+          ? { ...p, steps, tip, prepTime: d.prepTime || "", cookTime: d.cookTime || "", difficulty: d.difficulty || "", stepsLd: false }
+          : p);
       } catch (e) {
         if (attempt < 2) {
           await new Promise(r => setTimeout(r, 1000));
@@ -1921,7 +1940,9 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         const fallback = meal.ingredients && meal.ingredients.length > 0
           ? [`Prepare all ingredients: ${meal.ingredients.slice(0,5).join(", ")}${meal.ingredients.length > 5 ? " and more" : ""}. Cook according to standard method for ${meal.name}. Season to taste and serve hot.`]
           : [`Cook ${meal.name} according to your preferred method. Season well and serve.`];
-        setRecipe(p => p ? { ...p, steps: fallback, tip: "Recipe details unavailable — tap ↻ on the meal card to swap for a different dish.", stepsLd: false } : null);
+        setRecipe(p => (p?.meal?.name === meal.name && p?.mt === mt && p?.variant === variant)
+          ? { ...p, steps: fallback, tip: "Recipe details unavailable — tap ↻ on the meal card to swap for a different dish.", stepsLd: false }
+          : p);
       }
     };
     tryLoad(0);
