@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.4.3";
+const APP_VERSION = "0.4.4";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -2725,7 +2725,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                     const val = (prefs.cusInput||"").trim();
                     if(val && !prefs.cuisines.includes(val)) sp("cuisines", [...prefs.cuisines, val]);
                     sp("cusInput","");
-                  }}}>{t("add")}</button>
+                  }}>{t("add")}</button>
                 </div>
               </div>
               <div className="nav-row"><button className="btn btn-ghost" onClick={() => setStep("days")}>{t("back")}</button><button className="btn btn-primary" onClick={() => setStep("dietary")}>{t("continue")}</button></div>
