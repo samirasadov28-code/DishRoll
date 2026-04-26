@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.4.5";
+const APP_VERSION = "0.4.6";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -976,7 +976,7 @@ function calKeys(ck, past = 6) {
 }
 
 // ─── STORAGE ──────────────────────────────────────────────────────────────────
-const WP = "dr-week-", FK = "dr-favs", PK = "dr-premium", UK = "dr-usage", OK = "dr-onboarded";
+const WP = "dr-week-", FK = "dr-favs", PK = "dr-premium", UK = "dr-usage", OK = "dr-onboarded", LK = "dr-lang";
 const saveWk = (k, d) => { try { localStorage.setItem(WP+k, JSON.stringify({ ...d, at: Date.now() })); } catch {} };
 const loadWk = k => { try { const s = localStorage.getItem(WP+k); return s ? JSON.parse(s) : null; } catch { return null; } };
 const delWk  = k => { try { localStorage.removeItem(WP+k); } catch {} };
@@ -1613,7 +1613,7 @@ export default function App() {
   const setAwk = k => { setAwkS(k); awkR.current = k; };
 
   // prefs
-  const [prefs, setPrefs]   = useState({ ...DPREFS });
+  const [prefs, setPrefs]   = useState(() => { try { const l = localStorage.getItem(LK); return { ...DPREFS, ...(l ? { lang: l } : {}) }; } catch { return { ...DPREFS }; } });
 
   // plan data
   const [plan, setPlan]         = useState(null);
@@ -1732,8 +1732,10 @@ export default function App() {
   function persist(p2, c2, l2, tk2, cu2, kp2) {
     const key = awkR.current;
     if (!key || !p2) return;
+    try { localStorage.setItem(LK, prefs.lang || "en"); } catch {}
     saveWk(key, {
       plan: p2,
+      epln: englishPlan || null,
       costs: c2 ?? costs,
       prefs,
       sl: l2 ?? sl,
@@ -1745,16 +1747,32 @@ export default function App() {
 
   function openPlan(key) {
     const d = loadWk(key); if (!d) return;
+    const globalLang = (() => { try { return localStorage.getItem(LK) || "en"; } catch { return "en"; } })();
+    const planLang = d.prefs?.lang || "en";
     setAwk(key); setPlan(d.plan); setCosts(d.costs || {});
-    if (d.prefs) setPrefs({ ...DPREFS, ...d.prefs });
+    // Always honour the user's currently-chosen language, not the language the plan was saved in
+    if (d.prefs) setPrefs({ ...DPREFS, ...d.prefs, lang: globalLang });
+    setEnglishPlan(d.epln || null);
     setSl(d.sl || null); setTicked(new Set(d.ticked || [])); setCustom(d.custom || []);
     setPicked(new Set()); setKPicked(new Set(d.kPicked || [])); setErr("");
+    // If the plan content is in a different language and we have the English original, re-translate now
+    if (globalLang !== planLang && globalLang !== "en" && d.epln) {
+      setTranslating(true);
+      const days = (d.prefs?.days) || DAYS;
+      const types = (d.prefs?.types) || ["dinner"];
+      (async () => {
+        try { setPlan(await translateMealPlan(d.epln, globalLang, days, types)); } catch {}
+        setTranslating(false);
+      })();
+    }
     setStep("mealplan");
   }
   function openList(key) {
     const d = loadWk(key); if (!d?.sl) return;
+    const globalLang = (() => { try { return localStorage.getItem(LK) || "en"; } catch { return "en"; } })();
     setAwk(key); setPlan(d.plan || null); setCosts(d.costs || {});
-    if (d.prefs) setPrefs({ ...DPREFS, ...d.prefs });
+    if (d.prefs) setPrefs({ ...DPREFS, ...d.prefs, lang: globalLang });
+    setEnglishPlan(d.epln || null);
     setSl(d.sl); setTicked(new Set(d.ticked || [])); setCustom(d.custom || []);
     setPicked(new Set()); setKPicked(new Set(d.kPicked || [])); setErr("");
     setStep("list");
@@ -2615,6 +2633,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                       onClick={() => {
                         const code = l.code;
                         sp("lang", code);
+                        try { localStorage.setItem(LK, code); } catch {}
                         setShowLangDrop(false);
                         if (englishPlan) {
                           setTranslating(true);
