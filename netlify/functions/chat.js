@@ -26,13 +26,16 @@ exports.handler = async (event) => {
     };
   }
 
-  let { prompt, maxTokens = 4000, lang } = JSON.parse(event.body);
+  let { prompt, messages, maxTokens = 4000, lang, systemPrompt } = JSON.parse(event.body);
 
   // Groq has per-model token limits — cap to avoid errors
   if (maxTokens > 4000) maxTokens = 4000;
 
-  // System prompt is always the same — language is handled by the user prompt
-  const systemContent = 'You are a culinary expert and meal planner. Respond ONLY with valid compact JSON. No markdown backticks, no prose, no preamble, no explanation.';
+  const systemContent = systemPrompt ||
+    'You are a culinary expert and meal planner. Respond ONLY with valid compact JSON. No markdown backticks, no prose, no preamble, no explanation.';
+
+  // Support multi-turn: accept a messages array, or fall back to single prompt
+  const chatHistory = messages ? messages : [{ role: 'user', content: prompt }];
 
   let lastError = '';
 
@@ -48,7 +51,7 @@ exports.handler = async (event) => {
           model: MODEL,
           messages: [
             { role: 'system', content: systemContent },
-            { role: 'user', content: prompt },
+            ...chatHistory,
           ],
           max_tokens: maxTokens,
           temperature: 0.7,

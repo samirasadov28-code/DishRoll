@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.4.6";
+const APP_VERSION = "0.4.7";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -1560,9 +1560,27 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .ml-sub{font-size:12px;color:#7a8a6a}
 .ml-arrow{font-size:18px;color:#a0c090;flex-shrink:0}
 
-/* feedback floating button */
-.fb-fab{position:fixed;right:16px;bottom:18px;z-index:400;background:linear-gradient(135deg,#1a4a2a,#2a6a3a);color:#fff;border:none;padding:10px 16px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;display:inline-flex;align-items:center;gap:6px;box-shadow:0 6px 18px rgba(26,74,42,.28);transition:all .2s}
+/* feedback floating button — bottom LEFT */
+.fb-fab{position:fixed;left:16px;bottom:18px;z-index:400;background:linear-gradient(135deg,#1a4a2a,#2a6a3a);color:#fff;border:none;padding:10px 16px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;display:inline-flex;align-items:center;gap:6px;box-shadow:0 6px 18px rgba(26,74,42,.28);transition:all .2s}
 .fb-fab:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(26,74,42,.35)}
+/* chat FAB — bottom RIGHT */
+.chat-fab{position:fixed;right:16px;bottom:18px;z-index:400;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#c4622d,#a04820);border:none;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(196,98,45,.35);transition:all .2s}
+.chat-fab:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(196,98,45,.45)}
+/* chat panel */
+.chat-panel{position:fixed;right:16px;bottom:82px;z-index:410;width:340px;max-width:calc(100vw - 32px);max-height:min(520px,70vh);background:#fff;border-radius:18px;box-shadow:0 12px 40px rgba(20,30,15,.18);display:flex;flex-direction:column;overflow:hidden;border:1px solid #e8e4d8}
+.chat-hdr{background:#1a4a2a;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.chat-hdr-title{color:#fff;font-weight:600;font-size:14px;display:flex;align-items:center;gap:7px}
+.chat-hdr-close{background:rgba(255,255,255,.18);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;line-height:1}
+.chat-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:9px;min-height:0}
+.chat-bubble{max-width:82%;padding:9px 12px;border-radius:14px;font-size:13px;line-height:1.55;word-break:break-word;white-space:pre-wrap}
+.chat-bubble.user{align-self:flex-end;background:#1a4a2a;color:#fff;border-bottom-right-radius:4px}
+.chat-bubble.ai{align-self:flex-start;background:#f4f0e8;color:#1a2a1a;border-bottom-left-radius:4px}
+.chat-bubble.ai.loading{opacity:.6}
+.chat-input-row{display:flex;gap:8px;padding:10px 12px;border-top:1px solid #f0ece0;flex-shrink:0;background:#faf7f0}
+.chat-input{flex:1;border:1.5px solid #d0ccb8;border-radius:10px;padding:8px 11px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:#1a3a1a;background:#fff;outline:none}
+.chat-input:focus{border-color:#2a6a3a}
+.chat-send{background:#1a4a2a;color:#fff;border:none;border-radius:10px;padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.chat-send:disabled{opacity:.5;cursor:default}
 .fb-ta{width:100%;min-height:110px;padding:10px 12px;border:1.5px solid #d0ccb8;border-radius:10px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:#1a3a1a;background:#fff;resize:vertical;box-sizing:border-box}
 .fb-ta:focus{outline:none;border-color:#2a6a3a}
 .fb-email{width:100%;padding:9px 12px;border:1.5px solid #d0ccb8;border-radius:10px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:#1a3a1a;background:#fff;box-sizing:border-box;margin-top:10px}
@@ -1657,6 +1675,10 @@ export default function App() {
   const [fbState, setFbState] = useState("idle"); // idle | busy | done | error
   const [fbErr, setFbErr]     = useState("");
   const [showOnboard, setShowOnboard] = useState(false);
+  const [chatOpen, setChatOpen]       = useState(false);
+  const [chatMsgs, setChatMsgs]       = useState([]);
+  const [chatInput, setChatInput]     = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
 
   const sym    = CURRENCY[prefs.currency] || "€";
   const tsrv   = prefs.adults + (prefs.kidsDiff ? 0 : prefs.kids);
@@ -1964,6 +1986,46 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
       }
     };
     tryLoad(0);
+  }
+
+  // chat
+  async function sendChat(text) {
+    const userMsg = text.trim();
+    if (!userMsg || chatLoading) return;
+    const next = [...chatMsgs, { role: "user", content: userMsg }];
+    setChatMsgs(next);
+    setChatInput("");
+    setChatLoading(true);
+    // Build a context-aware system prompt
+    const langName = LANG_EN[prefs.lang] || null;
+    const planCtx = plan
+      ? selDays.flatMap(d => prefs.types.map(mt => {
+          const m = plan[d.toLowerCase()]?.[mt];
+          return m ? `${d} ${mt}: ${m.name}` : null;
+        })).filter(Boolean).join(", ")
+      : null;
+    const sysParts = [
+      "You are DishRoll's friendly culinary assistant. Help with meal planning, recipes, cooking tips, ingredient substitutions, and food questions. Be warm, concise, and practical. Do NOT wrap answers in JSON.",
+      langName ? `Always respond in ${langName}.` : "",
+      planCtx ? `The user's current meal plan: ${planCtx}.` : "",
+    ].filter(Boolean);
+    try {
+      const r = await fetch("/.netlify/functions/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: next.slice(-12), // keep last 12 turns to stay within tokens
+          maxTokens: 500,
+          systemPrompt: sysParts.join(" "),
+        }),
+      });
+      const d = await r.json();
+      const reply = d.text || d.error || "Sorry, I couldn't respond right now.";
+      setChatMsgs(m => [...m, { role: "assistant", content: reply }]);
+    } catch {
+      setChatMsgs(m => [...m, { role: "assistant", content: "Connection error — please try again." }]);
+    }
+    setChatLoading(false);
   }
 
   // checkout
@@ -2496,6 +2558,50 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
     );
   }
 
+  // ─── CHAT WIDGET ────────────────────────────────────────────────────────────
+  function ChatWidget() {
+    const msgsEndRef = useRef(null);
+    useEffect(() => { msgsEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMsgs, chatLoading]);
+    const handleKey = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(chatInput); } };
+    const greeting = LANG_EN[prefs.lang]
+      ? { es:"Hola! Soy tu asistente culinario. ¿En qué puedo ayudarte?", fr:"Bonjour! Je suis votre assistant culinaire. Comment puis-je vous aider?", de:"Hallo! Ich bin dein kulinarischer Assistent. Wie kann ich helfen?", uk:"Привіт! Я ваш кулінарний помічник. Чим можу допомогти?", pt:"Olá! Sou o teu assistente culinário. Como posso ajudar?", it:"Ciao! Sono il tuo assistente culinario. Come posso aiutarti?", nl:"Hallo! Ik ben uw culinaire assistent. Hoe kan ik helpen?", tr:"Merhaba! Mutfak asistanınım. Nasıl yardımcı olabilirim?", zh:"你好！我是你的美食助手，有什么可以帮你的？", ar:"مرحباً! أنا مساعدك في الطهي. كيف يمكنني مساعدتك؟", hi:"नमस्ते! मैं आपका पाक सहायक हूँ। मैं आपकी कैसे मदद कर सकता हूँ?", ru:"Привет! Я ваш кулинарный помощник. Как могу помочь?"}[prefs.lang] || "Hi! I'm your culinary assistant. Ask me about meals, recipes, or cooking tips."
+      : "Hi! I'm your culinary assistant. Ask me about meals, recipes, or cooking tips.";
+    return (
+      <>
+        <button className="chat-fab" onClick={() => setChatOpen(o => !o)} aria-label="Chat with culinary assistant">
+          {chatOpen ? "✕" : "💬"}
+        </button>
+        {chatOpen && (
+          <div className="chat-panel">
+            <div className="chat-hdr">
+              <div className="chat-hdr-title">🍽️ DishRoll Assistant</div>
+              <button className="chat-hdr-close" onClick={() => setChatOpen(false)}>✕</button>
+            </div>
+            <div className="chat-msgs">
+              <div className="chat-bubble ai">{greeting}</div>
+              {chatMsgs.map((msg, i) => (
+                <div key={i} className={`chat-bubble ${msg.role === "user" ? "user" : "ai"}`}>{msg.content}</div>
+              ))}
+              {chatLoading && <div className="chat-bubble ai loading">…</div>}
+              <div ref={msgsEndRef} />
+            </div>
+            <div className="chat-input-row">
+              <input
+                className="chat-input"
+                placeholder="Ask anything…"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={handleKey}
+                disabled={chatLoading}
+              />
+              <button className="chat-send" onClick={() => sendChat(chatInput)} disabled={chatLoading || !chatInput.trim()}>Send</button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
   // ─── ONBOARDING MODAL ───────────────────────────────────────────────────────
   function OnboardingModal() {
     if (!showOnboard) return null;
@@ -3024,10 +3130,13 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         {FeedbackModal()}
         <OnboardingModal />
 
-        {/* Floating feedback button */}
+        {/* Floating feedback button — bottom left */}
         <button className="fb-fab" onClick={() => { setFbErr(""); setFbState("idle"); setShowFeedback(true); track("feedback_opened"); }} aria-label="Send feedback">
           {t("feedback")}
         </button>
+
+        {/* Chat widget — bottom right */}
+        <ChatWidget />
 
         {showToast && <div className="toast">{toast}</div>}
       </div>
