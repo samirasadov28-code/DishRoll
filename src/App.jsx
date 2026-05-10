@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.4.7";
+const APP_VERSION = "0.4.8";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -91,8 +91,8 @@ const LANG_EN = {
 // ─── UI TRANSLATIONS ──────────────────────────────────────────────────────────
 const UI = {
   en: {
-    hero1:"Weekly meal planning", hero2:"Know what's for", hero2em:"dinner every night.",
-    hero3:"Plan your week, generate a shopping list, and discover new recipes.",
+    hero1:"AI-Powered Meal Planning", hero2:"Know what's for", hero2em:"dinner every night.",
+    hero3:"Describe your tastes, household &amp; budget — your AI chef builds a personalised week of meals, recipes &amp; a shopping list in seconds.",
     planThisWeek:"Plan this week", goPremium:"✦ Go Premium",
     home:"← Home", back:"← Back", continue:"Continue →", planMyWeek:"Plan my week",
     calendar:"← Calendar", autoSaved:"Auto-saved",
@@ -154,8 +154,8 @@ const UI = {
     favSaved:"saved favourite", favSavedP:"saved favourites", favRollIn:"— we'll roll them in where they fit.",
   },
   es: {
-    hero1:"Planificación semanal de comidas", hero2:"Sabe lo que cenar", hero2em:"cada noche.",
-    hero3:"Planifica tu semana, genera una lista de la compra y descubre nuevas recetas.",
+    hero1:"Planificación de comidas con IA", hero2:"Sabe lo que cenar", hero2em:"cada noche.",
+    hero3:"Describe tus gustos, hogar y presupuesto — tu chef IA crea un plan semanal personalizado con recetas y lista de compra en segundos.",
     planThisWeek:"Planificar esta semana", goPremium:"✦ Premium",
     home:"← Inicio", back:"← Atrás", continue:"Continuar →", planMyWeek:"Planificar mi semana",
     calendar:"← Calendario", autoSaved:"Guardado automáticamente",
@@ -217,8 +217,8 @@ const UI = {
     favSaved:"favorito guardado", favSavedP:"favoritos guardados", favRollIn:"— los incluiremos donde encajen.",
   },
   uk: {
-    hero1:"Тижневе планування харчування", hero2:"Знайте, що їсти", hero2em:"кожного вечора.",
-    hero3:"Плануйте тиждень, складайте список покупок і відкривайте нові рецепти.",
+    hero1:"Планування харчування зі ШІ", hero2:"Знайте, що їсти", hero2em:"кожного вечора.",
+    hero3:"Опишіть смаки, домогосподарство й бюджет — ваш ШІ-шеф створить персональний тижневий план, рецепти й список покупок за секунди.",
     planThisWeek:"Спланувати цей тиждень", goPremium:"✦ Преміум",
     home:"← Головна", back:"← Назад", continue:"Далі →", planMyWeek:"Спланувати мій тиждень",
     calendar:"← Календар", autoSaved:"Автозбережено",
@@ -280,8 +280,8 @@ const UI = {
     favSaved:"збережений улюблений", favSavedP:"збережені улюблені", favRollIn:"— ми включимо їх де підійдуть.",
   },
   fr: {
-    hero1:"Planification hebdomadaire des repas", hero2:"Sachez quoi manger", hero2em:"chaque soir.",
-    hero3:"Planifiez votre semaine, générez une liste de courses et découvrez de nouvelles recettes.",
+    hero1:"Planification de repas par IA", hero2:"Sachez quoi manger", hero2em:"chaque soir.",
+    hero3:"Décrivez vos goûts, votre foyer et votre budget — votre chef IA crée un plan de repas personnalisé avec recettes et liste de courses en quelques secondes.",
     planThisWeek:"Planifier cette semaine", goPremium:"✦ Premium",
     home:"← Accueil", back:"← Retour", continue:"Continuer →", planMyWeek:"Planifier ma semaine",
     calendar:"← Calendrier", autoSaved:"Sauvegarde auto",
@@ -343,8 +343,8 @@ const UI = {
     favSaved:"favori enregistré", favSavedP:"favoris enregistrés", favRollIn:"— nous les intégrerons là où ils conviennent.",
   },
   de: {
-    hero1:"Wöchentliche Mahlzeitenplanung", hero2:"Wisse jeden Abend,", hero2em:"was es zu essen gibt.",
-    hero3:"Plane deine Woche, erstelle eine Einkaufsliste und entdecke neue Rezepte.",
+    hero1:"KI-gestützte Mahlzeitenplanung", hero2:"Wisse jeden Abend,", hero2em:"was es zu essen gibt.",
+    hero3:"Beschreibe deinen Geschmack, Haushalt und Budget — dein KI-Koch erstellt in Sekunden einen personalisierten Wochenplan mit Rezepten und Einkaufsliste.",
     planThisWeek:"Diese Woche planen", goPremium:"✦ Premium",
     home:"← Start", back:"← Zurück", continue:"Weiter →", planMyWeek:"Meine Woche planen",
     calendar:"← Kalender", autoSaved:"Automatisch gespeichert",
@@ -406,8 +406,8 @@ const UI = {
     favSaved:"gespeicherter Favorit", favSavedP:"gespeicherte Favoriten", favRollIn:"— wir fügen sie ein, wo sie passen.",
   },
   pt: {
-    hero1:"Planeamento semanal de refeições", hero2:"Sabe o que comer", hero2em:"cada noite.",
-    hero3:"Planeia a tua semana, gera uma lista de compras e descobre novas receitas.",
+    hero1:"Planeamento de refeições com IA", hero2:"Sabe o que comer", hero2em:"cada noite.",
+    hero3:"Descreve os teus gostos, agregado e orçamento — o teu chef IA cria um plano semanal personalizado com receitas e lista de compras em segundos.",
     planThisWeek:"Planear esta semana", goPremium:"✦ Premium",
     home:"← Início", back:"← Voltar", continue:"Continuar →", planMyWeek:"Planear a minha semana",
     calendar:"← Calendário", autoSaved:"Guardado automaticamente",
@@ -469,8 +469,8 @@ const UI = {
     favSaved:"favorito guardado", favSavedP:"favoritos guardados", favRollIn:"— incluímo-los onde se encaixam.",
   },
   it: {
-    hero1:"Pianificazione settimanale dei pasti", hero2:"Sai sempre cosa mangiare", hero2em:"ogni sera.",
-    hero3:"Pianifica la tua settimana, genera una lista della spesa e scopri nuove ricette.",
+    hero1:"Pianificazione pasti con IA", hero2:"Sai sempre cosa mangiare", hero2em:"ogni sera.",
+    hero3:"Descrivi i tuoi gusti, il nucleo familiare e il budget — il tuo chef IA crea in secondi un piano settimanale personalizzato con ricette e lista della spesa.",
     planThisWeek:"Pianifica questa settimana", goPremium:"✦ Premium",
     home:"← Home", back:"← Indietro", continue:"Continua →", planMyWeek:"Pianifica la mia settimana",
     calendar:"← Calendario", autoSaved:"Salvato automaticamente",
@@ -532,8 +532,8 @@ const UI = {
     favSaved:"preferito salvato", favSavedP:"preferiti salvati", favRollIn:"— li includeremo dove si adattano.",
   },
   nl: {
-    hero1:"Wekelijkse maaltijdplanning", hero2:"Weet elke avond", hero2em:"wat je eet.",
-    hero3:"Plan je week, maak een boodschappenlijst en ontdek nieuwe recepten.",
+    hero1:"AI-gestuurde maaltijdplanning", hero2:"Weet elke avond", hero2em:"wat je eet.",
+    hero3:"Beschrijf jouw smaak, huishouden en budget — jouw AI-kok maakt in seconden een gepersonaliseerd weekplan met recepten en boodschappenlijst.",
     planThisWeek:"Deze week plannen", goPremium:"✦ Premium",
     home:"← Home", back:"← Terug", continue:"Doorgaan →", planMyWeek:"Mijn week plannen",
     calendar:"← Kalender", autoSaved:"Automatisch opgeslagen",
@@ -595,8 +595,8 @@ const UI = {
     favSaved:"opgeslagen favoriet", favSavedP:"opgeslagen favorieten", favRollIn:"— we voegen ze toe waar ze passen.",
   },
   tr: {
-    hero1:"Haftalık yemek planlaması", hero2:"Her akşam ne yiyeceğinizi", hero2em:"bilin.",
-    hero3:"Haftanızı planlayın, alışveriş listesi oluşturun ve yeni tarifler keşfedin.",
+    hero1:"Yapay Zeka Destekli Yemek Planlaması", hero2:"Her akşam ne yiyeceğinizi", hero2em:"bilin.",
+    hero3:"Zevklerinizi, hanenizi ve bütçenizi tarif edin — yapay zeka şefiniz saniyeler içinde kişisel haftalık plan, tarifler ve alışveriş listesi oluşturur.",
     planThisWeek:"Bu haftayı planla", goPremium:"✦ Premium",
     home:"← Ana Sayfa", back:"← Geri", continue:"Devam →", planMyWeek:"Haftamı planla",
     calendar:"← Takvim", autoSaved:"Otomatik kaydedildi",
@@ -658,8 +658,8 @@ const UI = {
     favSaved:"kayıtlı favori", favSavedP:"kayıtlı favori", favRollIn:"— uygun oldukları yere ekleyeceğiz.",
   },
   zh: {
-    hero1:"每周餐饮计划", hero2:"每晚都知道", hero2em:"吃什么。",
-    hero3:"规划您的一周，生成购物清单，发现新食谱。",
+    hero1:"AI智能餐饮计划", hero2:"每晚都知道", hero2em:"吃什么。",
+    hero3:"描述您的口味、家庭和预算 — 您的AI厨师将在几秒内生成个性化的周计划、食谱和购物清单。",
     planThisWeek:"规划本周", goPremium:"✦ 升级会员",
     home:"← 主页", back:"← 返回", continue:"继续 →", planMyWeek:"规划我的一周",
     calendar:"← 日历", autoSaved:"已自动保存",
@@ -721,8 +721,8 @@ const UI = {
     favSaved:"个已收藏", favSavedP:"个已收藏", favRollIn:"— 我们会在合适的地方加入它们。",
   },
   ar: {
-    hero1:"التخطيط الأسبوعي للوجبات", hero2:"اعرف ما ستتناوله", hero2em:"كل مساء.",
-    hero3:"خطط لأسبوعك، أنشئ قائمة تسوق، واكتشف وصفات جديدة.",
+    hero1:"تخطيط الوجبات بالذكاء الاصطناعي", hero2:"اعرف ما ستتناوله", hero2em:"كل مساء.",
+    hero3:"صف أذواقك وأسرتك وميزانيتك — سيقوم طاهيك الذكي بإنشاء خطة أسبوعية مخصصة مع وصفات وقائمة تسوق في ثوانٍ.",
     planThisWeek:"خطط لهذا الأسبوع", goPremium:"✦ الباقة المميزة",
     home:"الرئيسية ←", back:"رجوع ←", continue:"→ متابعة", planMyWeek:"خطط لأسبوعي",
     calendar:"التقويم ←", autoSaved:"حُفظ تلقائيًا",
@@ -784,8 +784,8 @@ const UI = {
     favSaved:"مفضلة محفوظة", favSavedP:"مفضلات محفوظة", favRollIn:"— سندرجها حيث تناسب.",
   },
   hi: {
-    hero1:"साप्ताहिक भोजन योजना", hero2:"हर शाम जानें", hero2em:"क्या खाना है।",
-    hero3:"अपना सप्ताह योजना बनाएं, खरीदारी सूची बनाएं और नई रेसिपी खोजें।",
+    hero1:"AI-संचालित भोजन योजना", hero2:"हर शाम जानें", hero2em:"क्या खाना है।",
+    hero3:"अपनी पसंद, परिवार और बजट बताएं — आपका AI शेफ सेकंड में व्यक्तिगत साप्ताहिक योजना, रेसिपी और खरीदारी सूची तैयार करेगा।",
     planThisWeek:"इस सप्ताह की योजना बनाएं", goPremium:"✦ प्रीमियम",
     home:"← होम", back:"← वापस", continue:"जारी रखें →", planMyWeek:"मेरे सप्ताह की योजना बनाएं",
     calendar:"← कैलेंडर", autoSaved:"स्वतः सहेजा गया",
@@ -847,8 +847,8 @@ const UI = {
     favSaved:"सहेजा पसंदीदा", favSavedP:"सहेजे पसंदीदा", favRollIn:"— हम उन्हें जहाँ फिट हों शामिल करेंगे।",
   },
   ru: {
-    hero1:"Еженедельное планирование питания", hero2:"Знайте, что есть", hero2em:"каждый вечер.",
-    hero3:"Планируйте неделю, создавайте список покупок и открывайте новые рецепты.",
+    hero1:"Планирование питания с ИИ", hero2:"Знайте, что есть", hero2em:"каждый вечер.",
+    hero3:"Опишите вкусы, домохозяйство и бюджет — ваш ИИ-шеф создаст персональный недельный план, рецепты и список покупок за секунды.",
     planThisWeek:"Спланировать эту неделю", goPremium:"✦ Премиум",
     home:"← Главная", back:"← Назад", continue:"Далее →", planMyWeek:"Спланировать мою неделю",
     calendar:"← Календарь", autoSaved:"Автосохранено",
@@ -1484,6 +1484,12 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .land-tagline{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#8a9a7a;margin-bottom:12px}
 .land-h1{font-family:'Cormorant Garamond',serif;font-size:44px;font-weight:600;color:#1a3a1a;line-height:1.08;margin-bottom:12px}
 .land-h1 em{color:#c4622d;font-style:italic}
+.land-ai-badge{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(196,98,45,.12),rgba(196,98,45,.06));border:1.5px solid rgba(196,98,45,.3);border-radius:100px;padding:5px 14px;font-size:11px;font-weight:700;color:#c4622d;letter-spacing:.5px;text-transform:uppercase;margin-bottom:18px}
+.ai-features{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:0 16px 32px;max-width:540px;margin:0 auto}
+.ai-feat{display:flex;align-items:flex-start;gap:9px;background:#fff;border:1.5px solid #e8e4d8;border-radius:14px;padding:12px 14px;flex:1;min-width:140px;max-width:180px;text-align:left}
+.ai-feat-icon{font-size:20px;flex-shrink:0;line-height:1}
+.ai-feat-text{font-size:12px;font-weight:600;color:#1a3a1a;line-height:1.4}
+.ai-feat-sub{font-size:11px;color:#6a7a5a;font-weight:400;margin-top:2px}
 .land-sub{font-size:15px;color:#5a6a4a;max-width:360px;margin:0 auto;line-height:1.7;font-weight:300}
 .land-cta{margin-top:24px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 .land-cta-p{background:#1a4a2a;color:#fff;border:none;padding:13px 26px;border-radius:100px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s}
@@ -2175,6 +2181,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         {/* Hero */}
         <div className="land-hero">
           <img src="/logo.png" alt="DishRoll" className="land-logo" />
+          <div className="land-ai-badge">✦ AI-Powered</div>
           <div className="land-tagline">{t("hero1")}</div>
           <div className="land-h1">{t("hero2")}<br /><em>{t("hero2em")}</em></div>
           <p className="land-sub">{t("hero3")}</p>
@@ -2184,6 +2191,22 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
               {!isPro && <button className="land-cta-s" onClick={() => setShowPaywall(true)}>{t("goPremium")}</button>}
             </div>
           )}
+        </div>
+
+        {/* AI feature highlights */}
+        <div className="ai-features">
+          <div className="ai-feat">
+            <div className="ai-feat-icon">🤖</div>
+            <div><div className="ai-feat-text">AI Meal Plans</div><div className="ai-feat-sub">Personalised to your tastes &amp; household</div></div>
+          </div>
+          <div className="ai-feat">
+            <div className="ai-feat-icon">📖</div>
+            <div><div className="ai-feat-text">Instant Recipes</div><div className="ai-feat-sub">Step-by-step for every meal</div></div>
+          </div>
+          <div className="ai-feat">
+            <div className="ai-feat-icon">💬</div>
+            <div><div className="ai-feat-text">AI Chef Chat</div><div className="ai-feat-sub">Ask anything, anytime</div></div>
+          </div>
         </div>
 
         {/* Plan status strip */}
