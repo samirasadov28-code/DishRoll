@@ -7,6 +7,7 @@ const LANG_EN = {
   uk:'Ukrainian', fr:'French', es:'Spanish', de:'German',
   pt:'Portuguese', it:'Italian', nl:'Dutch', tr:'Turkish',
   zh:'Chinese', ar:'Arabic', hi:'Hindi', ru:'Russian',
+  bn:'Bengali', ja:'Japanese', id:'Indonesian',
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
