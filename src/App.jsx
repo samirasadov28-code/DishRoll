@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.4.9";
+const APP_VERSION = "0.5.0";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -156,6 +156,17 @@ const UI = {
     reset:"↺ Reset", copyList:"📋 Copy list", addItem:"Add an item…", addItemBtn:"+ Add",
     feedback:"💬 Feedback", sendFeedback:"Send feedback",
     favSaved:"saved favourite", favSavedP:"saved favourites", favRollIn:"— we'll roll them in where they fit.",
+    ob1title:"Roll a full week in seconds", ob1sub:"Pick your days and cuisines — your AI chef plans meals with variety built in.",
+    ob2title:"One-tap shopping list", ob2sub:"Every meal turns into a categorised list. Tick items off as you shop.",
+    ob3title:"Recipes when you need them", ob3sub:"Tap any meal card for step-by-step cooking instructions — plus kids alternatives.",
+    ob4title:"Chat with your AI chef", ob4sub:"Ask for swaps, get cooking tips, or plan around what's in your fridge.",
+    letsRoll:"Let's roll",
+    listTipText:"Tap items to tick them off as you shop · Add extras at the bottom · Copy or Reset from the top bar",
+    gotIt:"Got it",
+    premiumWelcomeTitle:"You're Premium!", premiumWelcomeSub:"Here's what's now unlocked:",
+    premiumF1:"Unlimited weekly meal plans", premiumF2:"All your weeks saved forever",
+    premiumF3:"Kids meal alternatives", premiumF4:"AI chef chat — ask anything",
+    premiumStartPlanning:"Start planning",
   },
   es: {
     hero1:"Planificación de comidas con IA", hero2:"Sabe lo que cenar", hero2em:"cada noche.",
@@ -1169,7 +1180,7 @@ function calKeys(ck, past = 6) {
 }
 
 // ─── STORAGE ──────────────────────────────────────────────────────────────────
-const WP = "dr-week-", FK = "dr-favs", PK = "dr-premium", UK = "dr-usage", OK = "dr-onboarded", LK = "dr-lang";
+const WP = "dr-week-", FK = "dr-favs", PK = "dr-premium", UK = "dr-usage", OK = "dr-onboarded", LK = "dr-lang", SK = "dr-sl-tip", PW = "dr-pw-seen";
 const saveWk = (k, d) => { try { localStorage.setItem(WP+k, JSON.stringify({ ...d, at: Date.now() })); } catch {} };
 const loadWk = k => { try { const s = localStorage.getItem(WP+k); return s ? JSON.parse(s) : null; } catch { return null; } };
 const delWk  = k => { try { localStorage.removeItem(WP+k); } catch {} };
@@ -1583,6 +1594,10 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .list-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px}
 .list-act-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:100px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s;display:inline-flex;align-items:center;gap:5px}
 .list-act-btn:hover{background:rgba(255,255,255,.25)}
+.list-tip-banner{display:flex;align-items:center;gap:10px;background:#f0f7f0;border:1.5px solid #c8e6c9;border-radius:14px;padding:12px 14px;margin-bottom:16px}
+.list-tip-icon{font-size:18px;flex-shrink:0}
+.list-tip-text{flex:1;font-size:12px;color:#3a6a3a;line-height:1.5}
+.list-tip-dismiss{flex-shrink:0;background:#2a6a3a;color:#fff;border:none;border-radius:100px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif}
 .all-done{background:linear-gradient(135deg,#2a6a2a,#3a8a3a);border-radius:16px;padding:22px;text-align:center;margin-bottom:18px;color:#fff}
 .all-done-icon{font-size:44px;margin-bottom:8px}
 .all-done-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;margin-bottom:3px}
@@ -1873,8 +1888,10 @@ export default function App() {
   const [fbEmail, setFbEmail] = useState("");
   const [fbState, setFbState] = useState("idle"); // idle | busy | done | error
   const [fbErr, setFbErr]     = useState("");
-  const [showOnboard, setShowOnboard] = useState(false);
-  const [chatOpen, setChatOpen]       = useState(false);
+  const [showOnboard, setShowOnboard]         = useState(false);
+  const [showListTip, setShowListTip]         = useState(false);
+  const [showPremiumWelcome, setShowPremiumWelcome] = useState(false);
+  const [chatOpen, setChatOpen]               = useState(false);
   const [chatMsgs, setChatMsgs]       = useState([]);
   const [chatInput, setChatInput]     = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -1902,6 +1919,7 @@ export default function App() {
   useEffect(() => {
     try { const s = localStorage.getItem(FK); if (s) setFavs(JSON.parse(s)); } catch {}
     try { if (!localStorage.getItem(OK)) setShowOnboard(true); } catch {}
+    try { if (!localStorage.getItem(SK)) setShowListTip(true); } catch {}
     const p = loadP(); setPremium(p);
     setUsage(loadU());
     const params = new URLSearchParams(window.location.search);
@@ -1910,14 +1928,15 @@ export default function App() {
     if (act === "premium") {
       window.history.replaceState({}, document.title, window.location.pathname);
       const pd = { email: "premium@dishroll.app", id: "manual", until: Date.now() + 365 * 864e5 };
-      saveP(pd); setPremium(pd); pop("✨ Premium activated! Enjoy unlimited rolls.");
+      saveP(pd); setPremium(pd);
+      try { if (!localStorage.getItem(PW)) setShowPremiumWelcome(true); } catch {};
     } else if (sid) {
       window.history.replaceState({}, document.title, window.location.pathname);
       setVerifying(true);
       fetch("/.netlify/functions/verify", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ sessionId: sid }) })
         .then(r => r.json())
         .then(d => {
-          if (d.premium) { const pd = { email: d.email, id: d.customerId, subId: d.subscriptionId, until: d.validUntil }; saveP(pd); setPremium(pd); pop("🎉 Welcome to DishRoll Premium!"); }
+          if (d.premium) { const pd = { email: d.email, id: d.customerId, subId: d.subscriptionId, until: d.validUntil }; saveP(pd); setPremium(pd); try { if (!localStorage.getItem(PW)) setShowPremiumWelcome(true); } catch {} }
           else pop("Could not verify payment — contact support.");
         })
         .catch(() => pop("Could not verify. Try refreshing."))
@@ -2831,33 +2850,54 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         <div className="modal-box" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
           <div style={{ textAlign: "center", marginBottom: 14 }}>
             <img src="/logo.png" alt="DishRoll" style={{ width: 72, height: "auto", margin: "0 auto 8px", display: "block" }} />
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, fontWeight: 600, color: "#1a3a1a" }}>
-              Welcome to DishRoll
-            </div>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, fontWeight: 600, color: "#1a3a1a" }}>Welcome to DishRoll</div>
             <div style={{ fontSize: 13, color: "#6a7a5a" }}>Roll your week. Eat well.</div>
           </div>
-          <div className="ob-hl">
-            <div className="ob-icon">🎲</div>
-            <div>
-              <div className="ob-title">Roll a full week in seconds</div>
-              <div className="ob-sub">Pick your days and cuisines — we'll plan the meals with variety built in.</div>
+          {[
+            { icon:"🎲", title: t("ob1title"), sub: t("ob1sub") },
+            { icon:"🛒", title: t("ob2title"), sub: t("ob2sub") },
+            { icon:"👩‍🍳", title: t("ob3title"), sub: t("ob3sub") },
+            { icon:"💬", title: t("ob4title"), sub: t("ob4sub") },
+          ].map(({ icon, title, sub }) => (
+            <div key={title} className="ob-hl">
+              <div className="ob-icon">{icon}</div>
+              <div><div className="ob-title">{title}</div><div className="ob-sub">{sub}</div></div>
             </div>
+          ))}
+          <button className="paywall-cta" style={{ marginTop: 18 }} onClick={dismiss}>{t("letsRoll")}</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── PREMIUM WELCOME MODAL ──────────────────────────────────────────────────
+  function PremiumWelcomeModal() {
+    if (!showPremiumWelcome) return null;
+    const dismiss = () => {
+      try { localStorage.setItem(PW, "1"); } catch {}
+      setShowPremiumWelcome(false);
+      track("premium_welcome_dismissed");
+    };
+    return (
+      <div className="modal-overlay" onClick={dismiss}>
+        <div className="modal-box" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+          <div style={{ textAlign: "center", marginBottom: 16 }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>✨</div>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, fontWeight: 600, color: "#1a3a1a" }}>{t("premiumWelcomeTitle")}</div>
+            <div style={{ fontSize: 13, color: "#6a7a5a", marginTop: 4 }}>{t("premiumWelcomeSub")}</div>
           </div>
-          <div className="ob-hl">
-            <div className="ob-icon">🛒</div>
-            <div>
-              <div className="ob-title">One-tap shopping list</div>
-              <div className="ob-sub">Every meal turns into a categorised list. Tick as you shop.</div>
+          {[
+            { icon:"♾️",  text: t("premiumF1") },
+            { icon:"📅",  text: t("premiumF2") },
+            { icon:"👧",  text: t("premiumF3") },
+            { icon:"💬",  text: t("premiumF4") },
+          ].map(({ icon, text }) => (
+            <div key={text} className="ob-hl">
+              <div className="ob-icon" style={{ background: "linear-gradient(135deg,#e8f5e9,#c8e6c9)" }}>{icon}</div>
+              <div style={{ display:"flex", alignItems:"center" }}><div className="ob-title" style={{ marginBottom: 0 }}>{text}</div></div>
             </div>
-          </div>
-          <div className="ob-hl">
-            <div className="ob-icon">👩‍🍳</div>
-            <div>
-              <div className="ob-title">Recipes when you need them</div>
-              <div className="ob-sub">Tap any meal card to get step-by-step cooking — plus kids alternatives.</div>
-            </div>
-          </div>
-          <button className="paywall-cta" style={{ marginTop: 18 }} onClick={dismiss}>Let's roll</button>
+          ))}
+          <button className="paywall-cta" style={{ marginTop: 18, background: "linear-gradient(135deg,#2a6a3a,#1a4a2a)" }} onClick={dismiss}>{t("premiumStartPlanning")}</button>
         </div>
       </div>
     );
@@ -2883,6 +2923,13 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
             <button className="list-act-btn" onClick={() => setStep("landing")}>🏠 Home</button>
           </div>
         </div>
+        {showListTip && (
+          <div className="list-tip-banner">
+            <span className="list-tip-icon">💡</span>
+            <span className="list-tip-text">{t("listTipText")}</span>
+            <button className="list-tip-dismiss" onClick={() => { try { localStorage.setItem(SK, "1"); } catch {} setShowListTip(false); }}>{t("gotIt")}</button>
+          </div>
+        )}
         {allDone && <div className="all-done"><div className="all-done-icon">🎉</div><div className="all-done-title">{t("allDone")}</div><div className="all-done-sub">{t("allDoneSub")}</div></div>}
         {cats.map(cat => {
           const items = cat._custom ? custom : cat.items.map(i => ({ id: i, text: i }));
@@ -3345,6 +3392,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         <ManageModal />
         {FeedbackModal()}
         <OnboardingModal />
+        <PremiumWelcomeModal />
 
         {/* Floating feedback button — bottom left */}
         <button className="fb-fab" onClick={() => { setFbErr(""); setFbState("idle"); setShowFeedback(true); track("feedback_opened"); }} aria-label="Send feedback">
