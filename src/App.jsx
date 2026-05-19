@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.5.1";
+const APP_VERSION = "0.5.2";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -1417,7 +1417,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .lang-opt.active{font-weight:700;color:#2a6a3a}
 .pb{height:3px;background:#c8d8b8}
 .pf{height:100%;background:linear-gradient(90deg,#2a6a3a,#c4622d);transition:width .4s}
-.page{max-width:900px;margin:0 auto;padding:36px 20px 100px}
+.page{max-width:900px;margin:0 auto;padding:36px 20px 120px}
 
 /* typography */
 .serif{font-family:'Cormorant Garamond',serif}
@@ -1775,13 +1775,13 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .ml-arrow{font-size:18px;color:#a0c090;flex-shrink:0}
 
 /* feedback floating button — bottom LEFT */
-.fb-fab{position:fixed;left:16px;bottom:18px;z-index:400;background:linear-gradient(135deg,#1a4a2a,#2a6a3a);color:#fff;border:none;padding:10px 16px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;display:inline-flex;align-items:center;gap:6px;box-shadow:0 6px 18px rgba(26,74,42,.28);transition:all .2s}
+.fb-fab{position:fixed;left:16px;bottom:18px;z-index:400;background:linear-gradient(135deg,#1a4a2a,#2a6a3a);color:#fff;border:none;padding:10px 16px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;display:inline-flex;align-items:center;gap:6px;box-shadow:0 6px 18px rgba(26,74,42,.28);transition:bottom .2s,box-shadow .2s,transform .2s}
 .fb-fab:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(26,74,42,.35)}
 /* chat FAB — bottom RIGHT */
-.chat-fab{position:fixed;right:16px;bottom:18px;z-index:400;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#c4622d,#a04820);border:none;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(196,98,45,.35);transition:all .2s}
+.chat-fab{position:fixed;right:16px;bottom:18px;z-index:400;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#c4622d,#a04820);border:none;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(196,98,45,.35);transition:bottom .2s,box-shadow .2s,transform .2s}
 .chat-fab:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(196,98,45,.45)}
 /* chat panel */
-.chat-panel{position:fixed;right:16px;bottom:82px;z-index:410;width:340px;max-width:calc(100vw - 32px);max-height:min(520px,70vh);background:#fff;border-radius:18px;box-shadow:0 12px 40px rgba(20,30,15,.18);display:flex;flex-direction:column;overflow:hidden;border:1px solid #e8e4d8}
+.chat-panel{position:fixed;right:16px;bottom:82px;z-index:410;transition:bottom .2s;width:340px;max-width:calc(100vw - 32px);max-height:min(520px,70vh);background:#fff;border-radius:18px;box-shadow:0 12px 40px rgba(20,30,15,.18);display:flex;flex-direction:column;overflow:hidden;border:1px solid #e8e4d8}
 .chat-hdr{background:#1a4a2a;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .chat-hdr-title{color:#fff;font-weight:600;font-size:14px;display:flex;align-items:center;gap:7px}
 .chat-hdr-close{background:rgba(255,255,255,.18);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;line-height:1}
@@ -1898,6 +1898,8 @@ export default function App() {
 
   const sym    = CURRENCY[prefs.currency] || "€";
   const tsrv   = prefs.adults + (prefs.kidsDiff ? 0 : prefs.kids);
+  const fabBottom = step === "mealplan" ? 90 : 18;
+  const chatPanelBottom = fabBottom + 64;
   const budget = parseFloat(prefs.budget) || 0;
   const totalCost = Object.values(costs).reduce((s, v) => s + (v || 0), 0);
   const isPro  = isPActive(premium);
@@ -2803,11 +2805,11 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
       : "Hi! I'm your culinary assistant. Ask me about meals, recipes, or cooking tips.";
     return (
       <>
-        <button className="chat-fab" onClick={() => setChatOpen(o => !o)} aria-label="Chat with culinary assistant">
+        <button className="chat-fab" style={{ bottom: fabBottom }} onClick={() => setChatOpen(o => !o)} aria-label="Chat with culinary assistant">
           {chatOpen ? "✕" : "💬"}
         </button>
         {chatOpen && (
-          <div className="chat-panel">
+          <div className="chat-panel" style={{ bottom: chatPanelBottom }}>
             <div className="chat-hdr">
               <div className="chat-hdr-title">🍽️ DishRoll Assistant</div>
               <button className="chat-hdr-close" onClick={() => setChatOpen(false)}>✕</button>
@@ -3395,7 +3397,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         <PremiumWelcomeModal />
 
         {/* Floating feedback button — bottom left */}
-        <button className="fb-fab" onClick={() => { setFbErr(""); setFbState("idle"); setShowFeedback(true); track("feedback_opened"); }} aria-label="Send feedback">
+        <button className="fb-fab" style={{ bottom: fabBottom }} onClick={() => { setFbErr(""); setFbState("idle"); setShowFeedback(true); track("feedback_opened"); }} aria-label="Send feedback">
           {t("feedback")}
         </button>
 
