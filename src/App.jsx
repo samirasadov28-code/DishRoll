@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.5.0";
+const APP_VERSION = "0.5.1";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -154,7 +154,7 @@ const UI = {
     shoppingListTitle:"🛒 Shopping list", done:"done",
     allDone:"🎉 All done!", allDoneSub:"Everything is in your basket. Enjoy your meals!",
     reset:"↺ Reset", copyList:"📋 Copy list", addItem:"Add an item…", addItemBtn:"+ Add",
-    feedback:"💬 Feedback", sendFeedback:"Send feedback",
+    feedback:"✏️ Feedback", sendFeedback:"Send feedback",
     favSaved:"saved favourite", favSavedP:"saved favourites", favRollIn:"— we'll roll them in where they fit.",
     ob1title:"Roll a full week in seconds", ob1sub:"Pick your days and cuisines — your AI chef plans meals with variety built in.",
     ob2title:"One-tap shopping list", ob2sub:"Every meal turns into a categorised list. Tick items off as you shop.",
@@ -228,7 +228,7 @@ const UI = {
     shoppingListTitle:"🛒 Lista de la compra", done:"hecho",
     allDone:"🎉 ¡Todo listo!", allDoneSub:"Todo en la cesta. ¡Que aproveche!",
     reset:"↺ Restablecer", copyList:"📋 Copiar lista", addItem:"Añadir un artículo…", addItemBtn:"+ Añadir",
-    feedback:"💬 Comentarios", sendFeedback:"Enviar comentarios",
+    feedback:"✏️ Comentarios", sendFeedback:"Enviar comentarios",
     favSaved:"favorito guardado", favSavedP:"favoritos guardados", favRollIn:"— los incluiremos donde encajen.",
   },
   uk: {
@@ -291,7 +291,7 @@ const UI = {
     shoppingListTitle:"🛒 Список покупок", done:"виконано",
     allDone:"🎉 Все готово!", allDoneSub:"Все у кошику. Смачного!",
     reset:"↺ Скинути", copyList:"📋 Копіювати список", addItem:"Додати товар…", addItemBtn:"+ Додати",
-    feedback:"💬 Зворотний зв'язок", sendFeedback:"Надіслати відгук",
+    feedback:"✏️ Зворотний зв'язок", sendFeedback:"Надіслати відгук",
     favSaved:"збережений улюблений", favSavedP:"збережені улюблені", favRollIn:"— ми включимо їх де підійдуть.",
   },
   fr: {
@@ -354,7 +354,7 @@ const UI = {
     shoppingListTitle:"🛒 Liste de courses", done:"fait",
     allDone:"🎉 Tout est fait !", allDoneSub:"Tout est dans votre panier. Bon appétit !",
     reset:"↺ Réinitialiser", copyList:"📋 Copier la liste", addItem:"Ajouter un article…", addItemBtn:"+ Ajouter",
-    feedback:"💬 Commentaires", sendFeedback:"Envoyer des commentaires",
+    feedback:"✏️ Commentaires", sendFeedback:"Envoyer des commentaires",
     favSaved:"favori enregistré", favSavedP:"favoris enregistrés", favRollIn:"— nous les intégrerons là où ils conviennent.",
   },
   de: {
@@ -417,7 +417,7 @@ const UI = {
     shoppingListTitle:"🛒 Einkaufsliste", done:"erledigt",
     allDone:"🎉 Alles erledigt!", allDoneSub:"Alles im Korb. Guten Appetit!",
     reset:"↺ Zurücksetzen", copyList:"📋 Liste kopieren", addItem:"Artikel hinzufügen…", addItemBtn:"+ Hinzufügen",
-    feedback:"💬 Feedback", sendFeedback:"Feedback senden",
+    feedback:"✏️ Feedback", sendFeedback:"Feedback senden",
     favSaved:"gespeicherter Favorit", favSavedP:"gespeicherte Favoriten", favRollIn:"— wir fügen sie ein, wo sie passen.",
   },
   pt: {
@@ -480,7 +480,7 @@ const UI = {
     shoppingListTitle:"🛒 Lista de compras", done:"feito",
     allDone:"🎉 Tudo pronto!", allDoneSub:"Tudo no cesto. Bom apetite!",
     reset:"↺ Repor", copyList:"📋 Copiar lista", addItem:"Adicionar um artigo…", addItemBtn:"+ Adicionar",
-    feedback:"💬 Comentários", sendFeedback:"Enviar comentários",
+    feedback:"✏️ Comentários", sendFeedback:"Enviar comentários",
     favSaved:"favorito guardado", favSavedP:"favoritos guardados", favRollIn:"— incluímo-los onde se encaixam.",
   },
   it: {
@@ -543,7 +543,7 @@ const UI = {
     shoppingListTitle:"🛒 Lista della spesa", done:"fatto",
     allDone:"🎉 Tutto fatto!", allDoneSub:"Tutto nel carrello. Buon appetito!",
     reset:"↺ Reimposta", copyList:"📋 Copia lista", addItem:"Aggiungi un articolo…", addItemBtn:"+ Aggiungi",
-    feedback:"💬 Feedback", sendFeedback:"Invia feedback",
+    feedback:"✏️ Feedback", sendFeedback:"Invia feedback",
     favSaved:"preferito salvato", favSavedP:"preferiti salvati", favRollIn:"— li includeremo dove si adattano.",
   },
   nl: {
@@ -606,7 +606,7 @@ const UI = {
     shoppingListTitle:"🛒 Boodschappenlijst", done:"klaar",
     allDone:"🎉 Alles klaar!", allDoneSub:"Alles in het mandje. Eet smakelijk!",
     reset:"↺ Opnieuw instellen", copyList:"📋 Lijst kopiëren", addItem:"Item toevoegen…", addItemBtn:"+ Toevoegen",
-    feedback:"💬 Feedback", sendFeedback:"Feedback sturen",
+    feedback:"✏️ Feedback", sendFeedback:"Feedback sturen",
     favSaved:"opgeslagen favoriet", favSavedP:"opgeslagen favorieten", favRollIn:"— we voegen ze toe waar ze passen.",
   },
   tr: {
@@ -669,7 +669,7 @@ const UI = {
     shoppingListTitle:"🛒 Alışveriş listesi", done:"tamamlandı",
     allDone:"🎉 Her şey tamam!", allDoneSub:"Her şey sepette. Afiyet olsun!",
     reset:"↺ Sıfırla", copyList:"📋 Listeyi kopyala", addItem:"Ürün ekle…", addItemBtn:"+ Ekle",
-    feedback:"💬 Geri bildirim", sendFeedback:"Geri bildirim gönder",
+    feedback:"✏️ Geri bildirim", sendFeedback:"Geri bildirim gönder",
     favSaved:"kayıtlı favori", favSavedP:"kayıtlı favori", favRollIn:"— uygun oldukları yere ekleyeceğiz.",
   },
   zh: {
@@ -732,7 +732,7 @@ const UI = {
     shoppingListTitle:"🛒 购物清单", done:"完成",
     allDone:"🎉 全部完成！", allDoneSub:"所有商品已放入购物车。用餐愉快！",
     reset:"↺ 重置", copyList:"📋 复制清单", addItem:"添加商品…", addItemBtn:"+ 添加",
-    feedback:"💬 反馈", sendFeedback:"发送反馈",
+    feedback:"✏️ 反馈", sendFeedback:"发送反馈",
     favSaved:"个已收藏", favSavedP:"个已收藏", favRollIn:"— 我们会在合适的地方加入它们。",
   },
   ar: {
@@ -795,7 +795,7 @@ const UI = {
     shoppingListTitle:"🛒 قائمة التسوق", done:"تم",
     allDone:"🎉 تم الكل!", allDoneSub:"كل شيء في سلة التسوق. بالهناء والشفاء!",
     reset:"↺ إعادة تعيين", copyList:"📋 نسخ القائمة", addItem:"إضافة عنصر…", addItemBtn:"+ إضافة",
-    feedback:"💬 ملاحظات", sendFeedback:"إرسال ملاحظات",
+    feedback:"✏️ ملاحظات", sendFeedback:"إرسال ملاحظات",
     favSaved:"مفضلة محفوظة", favSavedP:"مفضلات محفوظة", favRollIn:"— سندرجها حيث تناسب.",
   },
   hi: {
@@ -858,7 +858,7 @@ const UI = {
     shoppingListTitle:"🛒 खरीदारी सूची", done:"पूर्ण",
     allDone:"🎉 सब हो गया!", allDoneSub:"सब कुछ टोकरी में है। खाना अच्छा लगे!",
     reset:"↺ रीसेट", copyList:"📋 सूची कॉपी करें", addItem:"कोई आइटम जोड़ें…", addItemBtn:"+ जोड़ें",
-    feedback:"💬 प्रतिक्रिया", sendFeedback:"प्रतिक्रिया भेजें",
+    feedback:"✏️ प्रतिक्रिया", sendFeedback:"प्रतिक्रिया भेजें",
     favSaved:"सहेजा पसंदीदा", favSavedP:"सहेजे पसंदीदा", favRollIn:"— हम उन्हें जहाँ फिट हों शामिल करेंगे।",
   },
   ru: {
@@ -921,7 +921,7 @@ const UI = {
     shoppingListTitle:"🛒 Список покупок", done:"готово",
     allDone:"🎉 Всё готово!", allDoneSub:"Всё в корзине. Приятного аппетита!",
     reset:"↺ Сбросить", copyList:"📋 Скопировать список", addItem:"Добавить товар…", addItemBtn:"+ Добавить",
-    feedback:"💬 Обратная связь", sendFeedback:"Отправить отзыв",
+    feedback:"✏️ Обратная связь", sendFeedback:"Отправить отзыв",
     favSaved:"сохранённое избранное", favSavedP:"сохранённых избранных", favRollIn:"— добавим их туда, где подойдут.",
   },
   bn: {
@@ -984,7 +984,7 @@ const UI = {
     shoppingListTitle:"🛒 শপিং লিস্ট", done:"সম্পন্ন",
     allDone:"🎉 সব সম্পন্ন!", allDoneSub:"সব আপনার ঝুড়িতে আছে। খাবার উপভোগ করুন!",
     reset:"↺ রিসেট", copyList:"📋 তালিকা কপি করুন", addItem:"একটি আইটেম যোগ করুন…", addItemBtn:"+ যোগ করুন",
-    feedback:"💬 মতামত", sendFeedback:"মতামত পাঠান",
+    feedback:"✏️ মতামত", sendFeedback:"মতামত পাঠান",
     favSaved:"সংরক্ষিত পছন্দ", favSavedP:"সংরক্ষিত পছন্দ", favRollIn:"— আমরা সেগুলো উপযুক্ত জায়গায় রাখব।",
   },
   ja: {
@@ -1047,7 +1047,7 @@ const UI = {
     shoppingListTitle:"🛒 買い物リスト", done:"完了",
     allDone:"🎉 すべて完了！", allDoneSub:"すべてカートに入っています。食事を楽しんでください！",
     reset:"↺ リセット", copyList:"📋 リストをコピー", addItem:"アイテムを追加…", addItemBtn:"+ 追加",
-    feedback:"💬 フィードバック", sendFeedback:"フィードバックを送る",
+    feedback:"✏️ フィードバック", sendFeedback:"フィードバックを送る",
     favSaved:"お気に入りに保存", favSavedP:"お気に入りに保存", favRollIn:"— 適切な場所に組み込みます。",
   },
   id: {
@@ -1110,7 +1110,7 @@ const UI = {
     shoppingListTitle:"🛒 Daftar belanja", done:"selesai",
     allDone:"🎉 Semua selesai!", allDoneSub:"Semuanya ada di keranjang Anda. Nikmati makanan Anda!",
     reset:"↺ Reset", copyList:"📋 Salin daftar", addItem:"Tambahkan item…", addItemBtn:"+ Tambah",
-    feedback:"💬 Umpan balik", sendFeedback:"Kirim umpan balik",
+    feedback:"✏️ Umpan balik", sendFeedback:"Kirim umpan balik",
     favSaved:"favorit tersimpan", favSavedP:"favorit tersimpan", favRollIn:"— kami akan memasukkannya di tempat yang sesuai.",
   },
 };
