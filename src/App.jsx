@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.5.3";
+const APP_VERSION = "0.5.4";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -96,7 +96,7 @@ const LANG_EN = {
 const UI = {
   en: {
     hero1:"AI-Powered Meal Planning", hero2:"Know what's for", hero2em:"dinner every night.",
-    hero3:"Describe your tastes, household &amp; budget — your AI chef builds a personalised week of meals, recipes &amp; a shopping list in seconds.",
+    hero3:"Describe your tastes, household & budget — your AI chef builds a personalised week of meals, recipes & a shopping list in seconds.",
     planThisWeek:"Plan this week", goPremium:"✦ Go Premium",
     home:"← Home", back:"← Back", continue:"Continue →", planMyWeek:"Plan my week",
     calendar:"← Calendar", autoSaved:"Auto-saved",
@@ -2411,7 +2411,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         <div className="ai-features">
           <div className="ai-feat">
             <div className="ai-feat-icon">🤖</div>
-            <div><div className="ai-feat-text">AI Meal Plans</div><div className="ai-feat-sub">Personalised to your tastes &amp; household</div></div>
+            <div><div className="ai-feat-text">AI Meal Plans</div><div className="ai-feat-sub">Personalised to your tastes & household</div></div>
           </div>
           <div className="ai-feat">
             <div className="ai-feat-icon">📖</div>
