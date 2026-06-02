@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.5.6";
+const APP_VERSION = "0.5.7";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -161,6 +161,7 @@ const UI = {
     ob3title:"Recipes when you need them", ob3sub:"Tap any meal card for step-by-step cooking instructions — plus kids alternatives.",
     ob4title:"Chat with your AI chef", ob4sub:"Ask for swaps, get cooking tips, or plan around what's in your fridge.",
     letsRoll:"Let's roll",
+    installApp:"⬇ Install App",
     listTipText:"Tap items to tick them off as you shop · Add extras at the bottom · Copy or Reset from the top bar",
     gotIt:"Got it",
     premiumWelcomeTitle:"You're Premium!", premiumWelcomeSub:"Here's what's now unlocked:",
@@ -1704,6 +1705,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .land-cta-p:hover{background:#0f3020;transform:translateY(-1px);box-shadow:0 5px 18px rgba(26,74,42,.3)}
 .land-cta-s{background:transparent;color:#2a6a3a;border:1.5px solid #a0c090;padding:12px 22px;border-radius:100px;font-size:14px;font-weight:500;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s}
 .land-cta-s:hover{background:#f0f5e8}
+.install-btn{margin-top:12px;display:inline-flex;align-items:center;gap:7px;background:rgba(26,74,42,.07);color:#1a4a2a;border:1.5px solid rgba(26,74,42,.25);padding:10px 22px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s}
+.install-btn:hover{background:rgba(26,74,42,.13);border-color:rgba(26,74,42,.4)}
 
 /* plan strip */
 .plan-strip{border-radius:14px;padding:13px 16px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
@@ -1888,10 +1891,11 @@ export default function App() {
   const [fbEmail, setFbEmail] = useState("");
   const [fbState, setFbState] = useState("idle"); // idle | busy | done | error
   const [fbErr, setFbErr]     = useState("");
-  const [showOnboard, setShowOnboard]         = useState(false);
-  const [showListTip, setShowListTip]         = useState(false);
+  const [showOnboard, setShowOnboard]               = useState(false);
+  const [showListTip, setShowListTip]               = useState(false);
   const [showPremiumWelcome, setShowPremiumWelcome] = useState(false);
-  const [chatOpen, setChatOpen]               = useState(false);
+  const [installPrompt, setInstallPrompt]           = useState(null);
+  const [chatOpen, setChatOpen]                     = useState(false);
   const [chatMsgs, setChatMsgs]       = useState([]);
   const [chatInput, setChatInput]     = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -1916,6 +1920,14 @@ export default function App() {
   const sp = (k, v) => setPrefs(p => ({ ...p, [k]: v }));
   const t = key => (UI[prefs.lang]?.[key] ?? UI.en[key] ?? key);
   const pop = msg => { setToast(msg); setShowToast(true); setTimeout(() => setShowToast(false), 2800); };
+
+  // PWA install prompt
+  useEffect(() => {
+    const handler = (e) => { e.preventDefault(); setInstallPrompt(e); };
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", () => setInstallPrompt(null));
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
 
   // boot
   useEffect(() => {
@@ -2404,6 +2416,12 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
               <button className="land-cta-p" onClick={() => newRoll(ck)}>{t("planThisWeek")}</button>
               {!isPro && <button className="land-cta-s" onClick={() => setShowPaywall(true)}>{t("goPremium")}</button>}
             </div>
+          )}
+          {installPrompt && (
+            <button className="install-btn" onClick={() => {
+              installPrompt.prompt();
+              installPrompt.userChoice.then(() => setInstallPrompt(null));
+            }}>{t("installApp")}</button>
           )}
         </div>
 
