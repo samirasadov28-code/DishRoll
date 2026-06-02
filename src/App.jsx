@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.5.8";
+const APP_VERSION = "0.5.9";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -1765,8 +1765,18 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 /* footer */
 .land-footer{text-align:center;padding:14px 0 6px;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
 .land-footer-v{font-size:11px;color:#aaa898}
+.land-footer-link{font-size:11px;color:#8a9a7a;background:none;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;text-decoration:underline;padding:0}
+.land-footer-link:hover{color:#2a3a1a}
 .btn-update{background:transparent;border:none;color:#8a9a7a;font-size:12px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:8px}
 .btn-update:hover{background:#f0ece0;color:#2a3a1a}
+/* privacy page */
+.privacy-page{max-width:700px;margin:0 auto;padding:36px 20px 100px}
+.privacy-page h1{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:600;color:#1a3a1a;margin-bottom:6px}
+.privacy-page .prv-date{font-size:13px;color:#6a7a5a;margin-bottom:28px}
+.privacy-page h2{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:#1a3a1a;margin:28px 0 8px}
+.privacy-page p,.privacy-page li{font-size:14px;color:#3a4a2a;line-height:1.75;margin-bottom:8px}
+.privacy-page ul{padding-left:20px;margin-bottom:8px}
+.privacy-page strong{color:#1a3a1a}
 
 /* modeloop link */
 .modeloop-card{background:#fff;border:1px solid #e0ddd0;border-radius:16px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;text-decoration:none;color:inherit;transition:all .2s}
@@ -1931,6 +1941,7 @@ export default function App() {
 
   // boot
   useEffect(() => {
+    if (window.location.pathname === "/privacy") setStep("privacy");
     try { const s = localStorage.getItem(FK); if (s) setFavs(JSON.parse(s)); } catch {}
     try { if (!localStorage.getItem(OK)) setShowOnboard(true); } catch {}
     try { if (!localStorage.getItem(SK)) setShowListTip(true); } catch {}
@@ -2546,11 +2557,68 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         {/* Footer */}
         <div className="land-footer">
           <span className="land-footer-v">DishRoll v{APP_VERSION}</span>
+          <button className="land-footer-link" onClick={() => { window.history.pushState({}, "", "/privacy"); setStep("privacy"); }}>Privacy Policy</button>
           <button className="btn-update" onClick={forceUpdate} disabled={updating}>
             <span className={updating ? "spinning" : ""} style={{ display: "inline-block" }}>↻</span>
             {updating ? "Updating…" : "Force update"}
           </button>
         </div>
+      </div>
+    );
+  }
+
+  // ─── PRIVACY POLICY ─────────────────────────────────────────────────────────
+  function PrivacyPolicyView() {
+    return (
+      <div className="privacy-page">
+        <button className="btn btn-ghost btn-sm" style={{ marginBottom: 24 }} onClick={() => { window.history.pushState({}, "", "/"); setStep("landing"); }}>← Home</button>
+        <h1>Privacy Policy</h1>
+        <p className="prv-date"><strong>Effective date: 2 June 2026</strong></p>
+
+        <p>This Privacy Policy explains how DishRoll ("DishRoll," "we," "us," or "our") collects, uses, and protects your information when you use the DishRoll application and website at https://dishroll.app (the "Service"). By using the Service, you agree to the practices described here.</p>
+
+        <h2>Information we collect</h2>
+        <p><strong>Usage data.</strong> We automatically collect limited technical information such as device type, browser, general usage activity, and log data to operate, secure, and improve the Service.</p>
+        <p><strong>Analytics data.</strong> We use Google Analytics to understand aggregate usage and improve the Service. Google Analytics collects information such as how often you visit the Service and what actions you take.</p>
+        <p><strong>Payment information.</strong> If you subscribe to a paid plan, payments are processed by Stripe. We do not collect or store your full payment card details on our servers; that information is handled directly by Stripe under its own terms and privacy policy.</p>
+        <p><strong>AI inputs.</strong> When you use AI-powered features (meal planning, recipe generation, chat), the meal preferences and messages you provide are transmitted to our AI provider solely to generate results for you. We do not store these inputs beyond what is necessary to produce the response.</p>
+
+        <h2>How we use your information</h2>
+        <p>We use the information we collect to provide and maintain the Service, process payments, generate personalised meal plans and recipes via AI, communicate with you about the Service, and analyse and improve features, performance, and security.</p>
+
+        <h2>How we share information</h2>
+        <p>We do not sell your personal information. We share information only with service providers who help us operate the Service, who process data on our behalf under their own privacy and security obligations:</p>
+        <ul>
+          <li><strong>Netlify</strong> — hosting and infrastructure</li>
+          <li><strong>Stripe</strong> — payment processing</li>
+          <li><strong>Groq</strong> — AI inference (meal plans, recipes, chat)</li>
+          <li><strong>Google Analytics</strong> — aggregate usage analytics</li>
+        </ul>
+        <p>We may also disclose information where required by law.</p>
+
+        <h2>AI-generated content</h2>
+        <p>DishRoll uses Groq's AI services (powered by Meta's Llama models) to generate meal plans, recipes, and chat responses. Inputs you provide for these features may be transmitted to Groq solely to produce results for you. Please do not include sensitive personal information in your meal preferences or chat messages.</p>
+
+        <h2>Data retention</h2>
+        <p>Meal plan data is stored locally on your device (browser localStorage) and is not transmitted to our servers. We retain other information for as long as needed to provide the Service and for legitimate or legal purposes.</p>
+
+        <h2>Your rights</h2>
+        <p>Depending on your location, you may have the right to access, correct, export, or delete your personal information, and to object to or restrict certain processing. To exercise these rights, contact us at <strong>support@dishroll.app</strong>.</p>
+
+        <h2>Security</h2>
+        <p>We use reasonable technical and organisational measures to protect your information. No method of transmission or storage is completely secure, and we cannot guarantee absolute security.</p>
+
+        <h2>Children's privacy</h2>
+        <p>DishRoll is not directed to children under 13 (or the minimum age required in your jurisdiction), and we do not knowingly collect personal information from them. If you believe a child has provided us personal information, contact us and we will delete it.</p>
+
+        <h2>International users</h2>
+        <p>Your information may be processed and stored in countries other than your own, which may have different data-protection laws. By using the Service you consent to such processing.</p>
+
+        <h2>Changes to this policy</h2>
+        <p>We may update this Privacy Policy from time to time. Material changes will be posted on this page with a revised effective date.</p>
+
+        <h2>Contact us</h2>
+        <p>If you have questions about this Privacy Policy, contact us at <strong>support@dishroll.app</strong>.</p>
       </div>
     );
   }
@@ -3041,18 +3109,21 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                 </div>
               )}
             </div>
-            {sl && step !== "list" && <button className="btn btn-ghost btn-sm" style={{color:"#fff",borderColor:"rgba(255,165,0,.7)",background:"rgba(196,98,45,.55)",fontWeight:700}} onClick={() => setStep("list")}>🛒<span style={{marginLeft:4}}>{t("list")}{doneCount > 0 ? ` (${doneCount}/${totalItems})` : ""}</span></button>}
-            {step !== "landing" && step !== "generating" && <button className="btn btn-ghost btn-sm" style={{color:"rgba(255,255,255,.9)",borderColor:"rgba(255,255,255,.35)",background:"rgba(255,255,255,.1)"}} onClick={() => setStep("landing")}>{t("home")}</button>}
+            {sl && step !== "list" && step !== "privacy" && <button className="btn btn-ghost btn-sm" style={{color:"#fff",borderColor:"rgba(255,165,0,.7)",background:"rgba(196,98,45,.55)",fontWeight:700}} onClick={() => setStep("list")}>🛒<span style={{marginLeft:4}}>{t("list")}{doneCount > 0 ? ` (${doneCount}/${totalItems})` : ""}</span></button>}
+            {step !== "landing" && step !== "generating" && step !== "privacy" && <button className="btn btn-ghost btn-sm" style={{color:"rgba(255,255,255,.9)",borderColor:"rgba(255,255,255,.35)",background:"rgba(255,255,255,.1)"}} onClick={() => setStep("landing")}>{t("home")}</button>}
           </div>
         </div>
 
         {/* Progress */}
-        {!["landing","generating","mealplan","list"].includes(step) && <div className="pb"><div className="pf" style={{ width: prog + "%" }} /></div>}
+        {!["landing","generating","mealplan","list","privacy"].includes(step) && <div className="pb"><div className="pf" style={{ width: prog + "%" }} /></div>}
 
         <div className="page">
 
           {/* LANDING */}
           {step === "landing" && <Landing />}
+
+          {/* PRIVACY */}
+          {step === "privacy" && <PrivacyPolicyView />}
 
           {/* LIST */}
           {step === "list" && <ListView />}
@@ -3415,12 +3486,12 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         <PremiumWelcomeModal />
 
         {/* Floating feedback button — bottom left */}
-        <button className="fb-fab" style={{ bottom: fabBottom }} onClick={() => { setFbErr(""); setFbState("idle"); setShowFeedback(true); track("feedback_opened"); }} aria-label="Send feedback">
+        {step !== "privacy" && <button className="fb-fab" style={{ bottom: fabBottom }} onClick={() => { setFbErr(""); setFbState("idle"); setShowFeedback(true); track("feedback_opened"); }} aria-label="Send feedback">
           {t("feedback")}
-        </button>
+        </button>}
 
         {/* Chat widget — bottom right */}
-        <ChatWidget />
+        {step !== "privacy" && <ChatWidget />}
 
         {showToast && <div className="toast">{toast}</div>}
       </div>
