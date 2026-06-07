@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.6.0";
+const APP_VERSION = "0.6.1";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -1738,12 +1738,12 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 
 /* week timeline */
 .wt-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#1a3a1a;margin-bottom:14px}
-.wt-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+.wt-scroll{display:flex;gap:10px;overflow-x:auto;padding:14px 0 12px;scrollbar-width:none}
 .wt-scroll::-webkit-scrollbar{display:none}
-.wk{flex-shrink:0;width:155px;background:#fff;border-radius:16px;padding:15px;border:1.5px solid #e0ddd0;cursor:pointer;transition:all .2s;position:relative}
+.wk{flex-shrink:0;width:155px;background:#fff;border-radius:16px;padding:14px;border:1.5px solid #e0ddd0;cursor:pointer;transition:all .2s;position:relative;display:flex;flex-direction:column;min-height:148px}
 .wk:hover{border-color:#a0c090;transform:translateY(-2px);box-shadow:0 4px 12px rgba(30,60,20,.1)}
-.wk.cur{border-color:#c4622d}
-.wk.has{border-color:#c8d8a8}
+.wk.cur{border-color:#c4622d;width:172px}
+.wk.has{border-color:#c8d8a8;width:172px;background:#f7faf2}
 .wk.empty{border-style:dashed;cursor:default}
 .wk.empty:hover{transform:none;box-shadow:none}
 .wk-dot{width:8px;height:8px;border-radius:50%;background:#e0ddd0;margin-bottom:9px}
@@ -1751,16 +1751,19 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .wk.has .wk-dot{background:#2a6a3a}
 .wk-lbl{font-size:10px;color:#8a9a7a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
 .wk-dates{font-size:11px;font-weight:600;color:#1a3a1a;line-height:1.4;margin-bottom:7px}
-.wk-meals{display:flex;flex-direction:column;gap:3px;margin-bottom:7px}
+.wk-meals{display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
 .wk-meal{font-size:10px;color:#3a5a3a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wk-empty-txt{font-size:11px;color:#b0b898;margin-bottom:7px}
-.wk-acts{display:flex;gap:5px;flex-wrap:wrap}
-.wk-btn{font-size:11px;padding:4px 9px;border-radius:100px;border:1.5px solid #d0ccb8;background:transparent;color:#4a6a4a;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .15s}
+.wk-acts{display:flex;gap:5px;flex-wrap:nowrap;margin-top:auto;padding-top:8px}
+.wk-btn{font-size:11px;padding:5px 10px;border-radius:100px;border:1.5px solid #d0ccb8;background:transparent;color:#4a6a4a;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .15s;white-space:nowrap}
 .wk-btn:hover{border-color:#2a6a3a;color:#2a6a3a}
-.wk-btn.pri{background:#1a4a2a;color:#fff;border-color:#1a4a2a}
-.wk-badge{position:absolute;top:-7px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:700;padding:2px 8px;border-radius:100px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.wk-btn.pri{background:#1a4a2a;color:#fff;border-color:#1a4a2a;flex:1}
+.wk-btn.pri:hover{background:#2a6a3a;border-color:#2a6a3a}
+.wk-badge{position:absolute;top:-10px;left:14px;font-size:9px;font-weight:700;padding:2px 8px;border-radius:100px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
 .wk-badge.now{background:#c4622d;color:#fff}
-.wk-badge.saved{background:#e8f0d8;color:#3a5a2a}
+.wk-badge.saved{background:#ddeec8;color:#2a5a1a}
+.wk-del{position:absolute;top:9px;right:9px;background:transparent;border:none;padding:0;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#c8c0a8;cursor:pointer;border-radius:50%;transition:all .15s}
+.wk-del:hover{background:#fde8e0;color:#b04020}
 
 /* footer */
 .land-footer{text-align:center;padding:14px 0 6px;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
@@ -2565,9 +2568,10 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
             const d = loadWk(key); const isC = isCW(key); const isF = isFW(key); const s = sample(d);
             const cls = ["wk", isC ? "cur" : d ? "has" : "empty"].join(" ");
             return (
-              <div key={key} className={cls} onClick={() => d && !isF && openPlan(key)}>
+              <div key={key} className={cls} onClick={() => d && !isF && cdel !== key && openPlan(key)}>
                 {isC && <span className="wk-badge now">{t("thisWeek")}</span>}
                 {!isC && d && <span className="wk-badge saved">{t("saved")}</span>}
+                {d && cdel !== key && <button className="wk-del" onClick={e => { e.stopPropagation(); setCdel(key); }} title="Delete week">✕</button>}
                 <div className="wk-dot" />
                 <div className="wk-lbl">{isF ? t("upcoming") : isC ? "Current" : new Date(key + "T00:00:00").toLocaleDateString("en-IE", { month: "short", year: "numeric" })}</div>
                 <div className="wk-dates">
@@ -2576,11 +2580,18 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                 {d && s.length > 0 && <div className="wk-meals">{s.map((n, i) => <div key={i} className="wk-meal">{n}</div>)}</div>}
                 {!d && <div className="wk-empty-txt">{isF ? t("planAhead") : t("tapToPlan")}</div>}
                 <div className="wk-acts" onClick={e => e.stopPropagation()}>
-                  {d && <button className="wk-btn pri" onClick={() => openPlan(key)}>{t("open")}</button>}
-                  {d?.sl && <button className="wk-btn" onClick={() => openList(key)}>{t("list")}</button>}
-                  <button className="wk-btn" onClick={() => newRoll(key)}>{d ? t("replan") : t("plan")}</button>
-                  {d && cdel !== key && <button className="wk-btn" style={{ color: "#b04020", borderColor: "#e0a898" }} onClick={() => setCdel(key)}>✕</button>}
-                  {d && cdel === key && <><button className="wk-btn" style={{ color: "#b04020", borderColor: "#b04020" }} onClick={() => { delWk(key); setCdel(null); pop(t("weekDeleted")); setStep(s => s); }}>{t("confirm")}</button><button className="wk-btn" onClick={() => setCdel(null)}>{t("cancel")}</button></>}
+                  {cdel === key ? (
+                    <>
+                      <button className="wk-btn" style={{ color:"#b04020", borderColor:"#b04020", flex:1 }} onClick={() => { delWk(key); setCdel(null); pop(t("weekDeleted")); setStep(s => s); }}>{t("confirm")}</button>
+                      <button className="wk-btn" onClick={() => setCdel(null)}>{t("cancel")}</button>
+                    </>
+                  ) : (
+                    <>
+                      {d && <button className="wk-btn pri" onClick={() => openPlan(key)}>{t("open")}</button>}
+                      {d?.sl && <button className="wk-btn" onClick={() => openList(key)}>{t("list")}</button>}
+                      <button className="wk-btn" onClick={() => newRoll(key)}>{d ? t("replan") : t("plan")}</button>
+                    </>
+                  )}
                 </div>
               </div>
             );
