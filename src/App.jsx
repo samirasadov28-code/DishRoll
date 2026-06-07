@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.5.9";
+const APP_VERSION = "0.6.0";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -1909,6 +1909,7 @@ export default function App() {
   const [chatMsgs, setChatMsgs]       = useState([]);
   const [chatInput, setChatInput]     = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const chatMsgsEndRef = useRef(null);
 
   const sym    = CURRENCY[prefs.currency] || "€";
   const tsrv   = prefs.adults + (prefs.kidsDiff ? 0 : prefs.kids);
@@ -1938,6 +1939,9 @@ export default function App() {
     window.addEventListener("appinstalled", () => setInstallPrompt(null));
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
+
+  // Chat scroll-to-bottom
+  useEffect(() => { chatMsgsEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMsgs, chatLoading]);
 
   // boot
   useEffect(() => {
@@ -2064,8 +2068,8 @@ export default function App() {
       const fh = [...prefs.favMeals, ...favs.slice(0, 4)].filter(Boolean).join(", ");
       const bn = prefs.budgetOn && budget > 0 ? `Budget:${sym}${budget}/week.` : "";
       const cn = prefs.complexity === "simple" ? "Prefer quick easy dishes under 30 minutes." : prefs.complexity === "elaborate" ? "Include impressive multi-step recipes." : "";
-      const kf = prefs.kids > 0 && prefs.kidsDiff ? `,"kidsAlt":{"name":"kids dish name","ingredients":["qty item"]}` : "";
-      const kn = prefs.kids > 0 && prefs.kidsDiff ? `Each meal must include "kidsAlt":{"name":"child-friendly dish","ingredients":["qty item"]} for ${prefs.kids} kids, mild and simple.` : "";
+      const kf = prefs.kids > 0 && prefs.kidsDiff ? `,"kidsAlt":{"name":"actual dish name","description":"one sentence about this dish","mainIngredient":"primary ingredient","ingredients":["qty item"]}` : "";
+      const kn = prefs.kids > 0 && prefs.kidsDiff ? `Each meal must include "kidsAlt" for ${prefs.kids} kids: give it a REAL dish name (never a placeholder), a one-sentence description, mainIngredient, and real specific ingredients — mild and simple.` : "";
       const mealShape = `{"name":"meal name","mainIngredient":"single-word primary protein or base e.g. chicken|beef|salmon|tofu|pasta|rice|lentils","description":"First sentence about key ingredients and cooking method. Second sentence about flavour profile or why it works.","time":"X min","estCost":0.00,"ingredients":["qty item"]${kf}}`;
       const daySchema = `{${prefs.types.map(t => `"${t}":${mealShape}`).join(",")}}`;
       const dJ = selDays.map(d => `"${d.toLowerCase()}":${daySchema}`).join(",");
@@ -2393,6 +2397,53 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
             <button className="meal-action-btn" title={isFav?"Remove favourite":"Add favourite"} onClick={onFav}>{isFav?"⭐":"☆"}</button>
             <button className="meal-action-btn" title="View recipe" onClick={onRecipe}>📖</button>
             <button className="meal-action-btn" title="Swap meal" onClick={onSwap}>↻</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function KidsCard({ kname, kdesc, kmain, kings, kSel, kk, prefs, mt, onPick, onRecipe }) {
+    const [imgSrc, setImgSrc] = useState(() => photoFallback(kname, mt, kmain));
+    const [imgDead, setImgDead] = useState(false);
+    useEffect(() => {
+      const fb = photoFallback(kname, mt, kmain);
+      setImgSrc(fb);
+      setImgDead(false);
+      let alive = true;
+      fetchPhoto(kname, mt, kings, kmain).then(url => {
+        if (alive && url && url !== fb) setImgSrc(url);
+      });
+      return () => { alive = false; };
+    }, [kname, mt]);
+    const handleImgErr = () => {
+      if (imgSrc !== PHOTO_MAP.default) { setImgSrc(PHOTO_MAP.default); }
+      else { setImgDead(true); }
+    };
+    return (
+      <div className={`meal-card kids-card${kSel?" picked":""}`} style={{ marginTop:8 }} onClick={onPick}>
+        {kSel && <div className="card-sel-badge kids">✓</div>}
+        <div className="meal-card-top">
+          <div className="meal-card-img-box">
+            {!imgDead && imgSrc
+              ? <img src={imgSrc} alt={kname} className="meal-card-thumb" onError={handleImgErr} />
+              : <div className="meal-card-thumb-blank" />
+            }
+            <div className="meal-card-flag-badge">👧</div>
+          </div>
+          <div className="meal-card-title-wrap">
+            <div className="kids-badge">Kids · {prefs.kids} portion{prefs.kids>1?"s":""}</div>
+            <div className="meal-card-name" style={{ color:"#2a5a1a" }} onClick={e=>{ e.stopPropagation(); onRecipe(); }}>{kname}</div>
+          </div>
+        </div>
+        {kdesc && <div className="meal-card-desc">{kdesc}</div>}
+        <div className="meal-card-footer">
+          <div className="meal-card-pills">
+            <span className="meal-pill-item">🥗 Child-friendly</span>
+            {kSel && <span className="meal-pill-item green">✓ In basket</span>}
+          </div>
+          <div className="meal-card-actions" onClick={e=>e.stopPropagation()}>
+            <button className="meal-action-btn" onClick={e=>{ e.stopPropagation(); onRecipe(); }}>📖</button>
           </div>
         </div>
       </div>
@@ -2881,49 +2932,11 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
     );
   }
 
-  // ─── CHAT WIDGET ────────────────────────────────────────────────────────────
-  function ChatWidget() {
-    const msgsEndRef = useRef(null);
-    useEffect(() => { msgsEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMsgs, chatLoading]);
-    const handleKey = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(chatInput); } };
-    const greeting = LANG_EN[prefs.lang]
-      ? { es:"Hola! Soy tu asistente culinario. ¿En qué puedo ayudarte?", fr:"Bonjour! Je suis votre assistant culinaire. Comment puis-je vous aider?", de:"Hallo! Ich bin dein kulinarischer Assistent. Wie kann ich helfen?", uk:"Привіт! Я ваш кулінарний помічник. Чим можу допомогти?", pt:"Olá! Sou o teu assistente culinário. Como posso ajudar?", it:"Ciao! Sono il tuo assistente culinario. Come posso aiutarti?", nl:"Hallo! Ik ben uw culinaire assistent. Hoe kan ik helpen?", tr:"Merhaba! Mutfak asistanınım. Nasıl yardımcı olabilirim?", zh:"你好！我是你的美食助手，有什么可以帮你的？", ar:"مرحباً! أنا مساعدك في الطهي. كيف يمكنني مساعدتك؟", hi:"नमस्ते! मैं आपका पाक सहायक हूँ। मैं आपकी कैसे मदद कर सकता हूँ?", ru:"Привет! Я ваш кулинарный помощник. Как могу помочь?"}[prefs.lang] || "Hi! I'm your culinary assistant. Ask me about meals, recipes, or cooking tips."
-      : "Hi! I'm your culinary assistant. Ask me about meals, recipes, or cooking tips.";
-    return (
-      <>
-        <button className="chat-fab" style={{ bottom: fabBottom }} onClick={() => setChatOpen(o => !o)} aria-label="Chat with culinary assistant">
-          {chatOpen ? "✕" : "💬"}
-        </button>
-        {chatOpen && (
-          <div className="chat-panel" style={{ bottom: chatPanelBottom }}>
-            <div className="chat-hdr">
-              <div className="chat-hdr-title">🍽️ DishRoll Assistant</div>
-              <button className="chat-hdr-close" onClick={() => setChatOpen(false)}>✕</button>
-            </div>
-            <div className="chat-msgs">
-              <div className="chat-bubble ai">{greeting}</div>
-              {chatMsgs.map((msg, i) => (
-                <div key={i} className={`chat-bubble ${msg.role === "user" ? "user" : "ai"}`}>{msg.content}</div>
-              ))}
-              {chatLoading && <div className="chat-bubble ai loading">…</div>}
-              <div ref={msgsEndRef} />
-            </div>
-            <div className="chat-input-row">
-              <input
-                className="chat-input"
-                placeholder="Ask anything…"
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                onKeyDown={handleKey}
-                disabled={chatLoading}
-              />
-              <button className="chat-send" onClick={() => sendChat(chatInput)} disabled={chatLoading || !chatInput.trim()}>Send</button>
-            </div>
-          </div>
-        )}
-      </>
-    );
-  }
+  // ─── CHAT GREETING (computed inline to avoid nested-component remount) ────────
+  const chatGreeting = LANG_EN[prefs.lang]
+    ? { es:"Hola! Soy tu asistente culinario. ¿En qué puedo ayudarte?", fr:"Bonjour! Je suis votre assistant culinaire. Comment puis-je vous aider?", de:"Hallo! Ich bin dein kulinarischer Assistent. Wie kann ich helfen?", uk:"Привіт! Я ваш кулінарний помічник. Чим можу допомогти?", pt:"Olá! Sou o teu assistente culinário. Como posso ajudar?", it:"Ciao! Sono il tuo assistente culinario. Come posso aiutarti?", nl:"Hallo! Ik ben uw culinaire assistent. Hoe kan ik helpen?", tr:"Merhaba! Mutfak asistanınım. Nasıl yardımcı olabilirim?", zh:"你好！我是你的美食助手，有什么可以帮你的？", ar:"مرحباً! أنا مساعدك في الطهي. كيف يمكنني مساعدتك؟", hi:"नमस्ते! मैं आपका पाक सहायक हूँ। मैं आपकी कैसे मदद कर सकता हूँ?", ru:"Привет! Я ваш кулинарный помощник. Как могу помочь?"}[prefs.lang] || "Hi! I'm your culinary assistant. Ask me about meals, recipes, or cooking tips."
+    : "Hi! I'm your culinary assistant. Ask me about meals, recipes, or cooking tips.";
+  const chatHandleKey = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(chatInput); } };
 
   // ─── ONBOARDING MODAL ───────────────────────────────────────────────────────
   function OnboardingModal() {
@@ -3401,6 +3414,8 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                         // Kids alt
                         const ka = m.kidsAlt;
                         const kname = ka && typeof ka==="object" ? ka.name : ka;
+                        const kdesc = ka && typeof ka==="object" ? ka.description || "" : "";
+                        const kmain = ka && typeof ka==="object" ? ka.mainIngredient || "" : "";
                         const kings = ka && typeof ka==="object" ? ka.ingredients||[] : [];
                         const kk = `${day.toLowerCase()}-${mt}-k`;
                         const kSel = kPicked.has(kk);
@@ -3423,25 +3438,12 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
 
                               {/* Kids card */}
                               {prefs.kids>0 && prefs.kidsDiff && kname && (
-                                <div className={`meal-card kids-card${kSel?" picked":""}`} style={{ marginTop:8 }} onClick={()=>toggleKPick(kk)}>
-                                  {kSel && <div className="card-sel-badge kids">✓</div>}
-                                  <div className="meal-card-top">
-                                    <div className="meal-card-flag">👧</div>
-                                    <div className="meal-card-title-wrap">
-                                      <div className="kids-badge">Kids · {prefs.kids} portion{prefs.kids>1?"s":""}</div>
-                                      <div className="meal-card-name" style={{ color:"#2a5a1a" }} onClick={e=>{ e.stopPropagation(); openRecipe({name:kname,ingredients:kings,time:"~20 min"},mt,"kids"); }}>{kname}</div>
-                                    </div>
-                                  </div>
-                                  <div className="meal-card-footer">
-                                    <div className="meal-card-pills">
-                                      <span className="meal-pill-item">🥗 Child-friendly</span>
-                                      {kSel && <span className="meal-pill-item green">✓ In basket</span>}
-                                    </div>
-                                    <div className="meal-card-actions" onClick={e=>e.stopPropagation()}>
-                                      <button className="meal-action-btn" onClick={()=>openRecipe({name:kname,ingredients:kings,time:"~20 min"},mt,"kids")}>📖</button>
-                                    </div>
-                                  </div>
-                                </div>
+                                <KidsCard
+                                  kname={kname} kdesc={kdesc} kmain={kmain} kings={kings}
+                                  kSel={kSel} kk={kk} prefs={prefs} mt={mt}
+                                  onPick={() => toggleKPick(kk)}
+                                  onRecipe={() => openRecipe({name:kname,description:kdesc,ingredients:kings,time:"~20 min"},mt,"kids")}
+                                />
                               )}
                             </div>
                           </Fragment>
@@ -3490,8 +3492,39 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
           {t("feedback")}
         </button>}
 
-        {/* Chat widget — bottom right */}
-        {step !== "privacy" && <ChatWidget />}
+        {/* Chat widget — bottom right (inline to keep input focused across re-renders) */}
+        {step !== "privacy" && <>
+          <button className="chat-fab" style={{ bottom: fabBottom }} onClick={() => setChatOpen(o => !o)} aria-label="Chat with culinary assistant">
+            {chatOpen ? "✕" : "💬"}
+          </button>
+          {chatOpen && (
+            <div className="chat-panel" style={{ bottom: chatPanelBottom }}>
+              <div className="chat-hdr">
+                <div className="chat-hdr-title">🍽️ DishRoll Assistant</div>
+                <button className="chat-hdr-close" onClick={() => setChatOpen(false)}>✕</button>
+              </div>
+              <div className="chat-msgs">
+                <div className="chat-bubble ai">{chatGreeting}</div>
+                {chatMsgs.map((msg, i) => (
+                  <div key={i} className={`chat-bubble ${msg.role === "user" ? "user" : "ai"}`}>{msg.content}</div>
+                ))}
+                {chatLoading && <div className="chat-bubble ai loading">…</div>}
+                <div ref={chatMsgsEndRef} />
+              </div>
+              <div className="chat-input-row">
+                <input
+                  className="chat-input"
+                  placeholder="Ask anything…"
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={chatHandleKey}
+                  disabled={chatLoading}
+                />
+                <button className="chat-send" onClick={() => sendChat(chatInput)} disabled={chatLoading || !chatInput.trim()}>Send</button>
+              </div>
+            </div>
+          )}
+        </>}
 
         {showToast && <div className="toast">{toast}</div>}
       </div>
