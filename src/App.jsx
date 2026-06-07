@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.6.1";
+const APP_VERSION = "0.6.2";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -1740,7 +1740,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .wt-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#1a3a1a;margin-bottom:14px}
 .wt-scroll{display:flex;gap:10px;overflow-x:auto;padding:14px 0 12px;scrollbar-width:none}
 .wt-scroll::-webkit-scrollbar{display:none}
-.wk{flex-shrink:0;width:155px;background:#fff;border-radius:16px;padding:14px;border:1.5px solid #e0ddd0;cursor:pointer;transition:all .2s;position:relative;display:flex;flex-direction:column;min-height:148px}
+.wk{flex-shrink:0;width:155px;background:#fff;border-radius:16px;padding:14px;border:1.5px solid #e0ddd0;cursor:pointer;transition:all .2s;position:relative}
 .wk:hover{border-color:#a0c090;transform:translateY(-2px);box-shadow:0 4px 12px rgba(30,60,20,.1)}
 .wk.cur{border-color:#c4622d;width:172px}
 .wk.has{border-color:#c8d8a8;width:172px;background:#f7faf2}
@@ -1754,10 +1754,10 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:#faf7f0;color:#2a2a1a
 .wk-meals{display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
 .wk-meal{font-size:10px;color:#3a5a3a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wk-empty-txt{font-size:11px;color:#b0b898;margin-bottom:7px}
-.wk-acts{display:flex;gap:5px;flex-wrap:nowrap;margin-top:auto;padding-top:8px}
+.wk-acts{display:flex;gap:5px;flex-wrap:wrap;padding-top:4px}
 .wk-btn{font-size:11px;padding:5px 10px;border-radius:100px;border:1.5px solid #d0ccb8;background:transparent;color:#4a6a4a;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .15s;white-space:nowrap}
 .wk-btn:hover{border-color:#2a6a3a;color:#2a6a3a}
-.wk-btn.pri{background:#1a4a2a;color:#fff;border-color:#1a4a2a;flex:1}
+.wk-btn.pri{background:#1a4a2a;color:#fff;border-color:#1a4a2a}
 .wk-btn.pri:hover{background:#2a6a3a;border-color:#2a6a3a}
 .wk-badge{position:absolute;top:-10px;left:14px;font-size:9px;font-weight:700;padding:2px 8px;border-radius:100px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
 .wk-badge.now{background:#c4622d;color:#fff}
