@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.6.2";
+const APP_VERSION = "0.6.3";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -1234,7 +1234,11 @@ function repairJSON(s) {
 }
 async function callAI(prompt, maxTokens = 4000, lang = "en") {
   const r = await fetch("/.netlify/functions/chat", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ prompt, maxTokens, lang }) });
-  if (!r.ok) throw new Error("API " + r.status);
+  if (!r.ok) {
+    let msg = "API " + r.status;
+    try { const d = await r.json(); if (d.error) msg = d.error; } catch {}
+    throw new Error(msg);
+  }
   const d = await r.json();
   if (d.error) throw new Error(d.error);
   const c = repairJSON((d.text || "").replace(/```json|```/g, "").trim());

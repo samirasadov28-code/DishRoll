@@ -59,21 +59,22 @@ exports.handler = async (event) => {
         }),
       });
 
-      // Rate limited — wait and retry
-      if (response.status === 429) {
-        console.warn(`Groq 429 rate limit on attempt ${attempt}, retrying in ${RETRY_DELAY_MS}ms…`);
-        lastError = 'Rate limited by Groq';
+      // Rate limited or transient server error — wait and retry
+      if (response.status === 429 || response.status >= 500) {
+        const errBody = await response.text().catch(() => '');
+        console.warn(`Groq ${response.status} on attempt ${attempt}, retrying in ${RETRY_DELAY_MS * attempt}ms…`, errBody);
+        lastError = `Groq ${response.status}${errBody ? ': ' + errBody.slice(0, 200) : ''}`;
         await sleep(RETRY_DELAY_MS * attempt);
         continue;
       }
 
       if (!response.ok) {
-        const errBody = await response.text();
+        const errBody = await response.text().catch(() => '');
         console.error('Groq API error:', response.status, errBody);
         return {
-          statusCode: response.status,
+          statusCode: 200,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ error: `Groq error ${response.status}: ${errBody}` }),
+          body: JSON.stringify({ error: `Groq error ${response.status}${errBody ? ': ' + errBody.slice(0, 300) : ''}` }),
         };
       }
 
@@ -94,8 +95,8 @@ exports.handler = async (event) => {
   }
 
   return {
-    statusCode: 500,
+    statusCode: 200,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ error: `Failed after ${MAX_RETRIES} attempts: ${lastError}` }),
+    body: JSON.stringify({ error: `AI service unavailable after ${MAX_RETRIES} attempts — please try again in a moment. (${lastError})` }),
   };
 };
