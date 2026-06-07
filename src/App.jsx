@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.6.3";
+const APP_VERSION = "0.6.4";
 const PRICE_MONTHLY = "€3.99";
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
@@ -2075,21 +2075,20 @@ export default function App() {
       const fh = [...prefs.favMeals, ...favs.slice(0, 4)].filter(Boolean).join(", ");
       const bn = prefs.budgetOn && budget > 0 ? `Budget:${sym}${budget}/week.` : "";
       const cn = prefs.complexity === "simple" ? "Prefer quick easy dishes under 30 minutes." : prefs.complexity === "elaborate" ? "Include impressive multi-step recipes." : "";
-      const kf = prefs.kids > 0 && prefs.kidsDiff ? `,"kidsAlt":{"name":"actual dish name","description":"one sentence about this dish","mainIngredient":"primary ingredient","ingredients":["qty item"]}` : "";
-      const kn = prefs.kids > 0 && prefs.kidsDiff ? `Each meal must include "kidsAlt" for ${prefs.kids} kids: give it a REAL dish name (never a placeholder), a one-sentence description, mainIngredient, and real specific ingredients — mild and simple.` : "";
-      const mealShape = `{"name":"meal name","mainIngredient":"single-word primary protein or base e.g. chicken|beef|salmon|tofu|pasta|rice|lentils","description":"First sentence about key ingredients and cooking method. Second sentence about flavour profile or why it works.","time":"X min","estCost":0.00,"ingredients":["qty item"]${kf}}`;
+      const kf = prefs.kids > 0 && prefs.kidsDiff ? `,"kidsAlt":{"name":"","description":"","mainIngredient":"","ingredients":[]}` : "";
+      const kn = prefs.kids > 0 && prefs.kidsDiff ? `Each meal needs "kidsAlt" for ${prefs.kids} kids: real dish name, 1-sentence description, mainIngredient, real ingredients (mild).` : "";
+      const mealShape = `{"name":"","mainIngredient":"","description":"2 sentences: method then flavour","time":"","estCost":0.00,"ingredients":[]${kf}}`;
       const daySchema = `{${prefs.types.map(t => `"${t}":${mealShape}`).join(",")}}`;
       const dJ = selDays.map(d => `"${d.toLowerCase()}":${daySchema}`).join(",");
       const varietyCap = Math.max(2, Math.ceil(selDays.length / 3));
-      const varietyRule = `VARIETY:No single "mainIngredient" may appear more than ${varietyCap} times across the whole plan. Rotate proteins (chicken,beef,fish,pork,lamb,tofu,lentils,chickpeas,eggs) and bases (pasta,rice,noodles,bread,potato) so no ingredient dominates.`;
+      const varietyRule = `VARIETY:No mainIngredient more than ${varietyCap}x. Rotate proteins+bases.`;
       const raw = await callAI(
-        `Generate a meal plan. Return ONLY valid compact JSON, no whitespace.\n` +
+        `Meal plan. ONLY valid compact JSON, no whitespace.\n` +
         `Days:${selDays.map(d => d.slice(0,3)).join(",")}|Types:${prefs.types.join(",")}|` +
         `Cuisines:${prefs.cuisines.length ? prefs.cuisines.join(",") : "varied"}|` +
         `Dietary:${prefs.dietary.length ? prefs.dietary.join(",") : "none"}|` +
         `Adventure:${prefs.adventure}%|Servings:${tsrv}|Favs:${fh || "none"}|${bn}${cn}${kn}\n` +
-        `${varietyRule}\n` +
-        `Return:{${dJ}}`,
+        `${varietyRule}\nReturn:{${dJ}}`,
         4000
       );
       let p2 = JSON.parse(raw);
