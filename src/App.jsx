@@ -1,7 +1,9 @@
 import { useState, useEffect, Fragment, useRef } from "react";
 
-const APP_VERSION = "0.6.5";
+const APP_VERSION = "0.6.6";
 const PRICE_MONTHLY = "€3.99";
+// Set to true to re-enable the paywall, usage caps, and upgrade CTAs
+const MONETIZATION_ENABLED = false;
 const track = (n, p) => { try { if (typeof window.track === "function") window.track(n, p || {}); } catch {} };
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -1933,7 +1935,7 @@ export default function App() {
   const rleft = isPro ? Infinity
     : inFreeTier ? (FREE_TOTAL - totalUsed)
     : Math.max(0, FREE_MONTHLY - monthUsed);
-  const canRoll = isPro || rleft > 0;
+  const canRoll = !MONETIZATION_ENABLED || isPro || rleft > 0;
   const selDays = (prefs.days || DAYS).filter(d => DAYS.includes(d));
   const sp = (k, v) => setPrefs(p => ({ ...p, [k]: v }));
   const t = key => (UI[prefs.lang]?.[key] ?? UI.en[key] ?? key);
@@ -2483,7 +2485,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
           {!cwd && (
             <div className="land-cta">
               <button className="land-cta-p" onClick={() => newRoll(ck)}>{t("planThisWeek")}</button>
-              {!isPro && <button className="land-cta-s" onClick={() => setShowPaywall(true)}>{t("goPremium")}</button>}
+              {MONETIZATION_ENABLED && !isPro && <button className="land-cta-s" onClick={() => setShowPaywall(true)}>{t("goPremium")}</button>}
             </div>
           )}
           {installPrompt && (
@@ -2511,28 +2513,30 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         </div>
 
         {/* Plan status strip */}
-        {isPro ? (
-          <div className="plan-strip premium">
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.6)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 2 }}>✨ DishRoll Premium</div>
-              <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>
-                {premium?.cancelled
-                  ? <>Cancelled · access until {fmtDate(premium.until)}</>
-                  : <>Unlimited rolls · {premium?.email || "Active"}</>
-                }
+        {MONETIZATION_ENABLED ? (
+          isPro ? (
+            <div className="plan-strip premium">
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.6)", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 2 }}>✨ DishRoll Premium</div>
+                <div style={{ fontSize: 13, color: "#fff", fontWeight: 500 }}>
+                  {premium?.cancelled
+                    ? <>Cancelled · access until {fmtDate(premium.until)}</>
+                    : <>Unlimited rolls · {premium?.email || "Active"}</>
+                  }
+                </div>
               </div>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,.75)", cursor: "pointer", textDecoration: "underline" }} onClick={() => { setCancelStep("idle"); setCancelErr(""); setShowManage(true); }}>Manage</span>
             </div>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,.75)", cursor: "pointer", textDecoration: "underline" }} onClick={() => { setCancelStep("idle"); setCancelErr(""); setShowManage(true); }}>Manage</span>
-          </div>
-        ) : (
-          <div className="plan-strip free">
-            <div style={{ fontSize: 13, color: "#5a6a4a" }}>
-              Free — <strong style={{ color: "#1a3a1a" }}>{rleft} roll{rleft !== 1 ? "s" : ""}</strong>{" "}
-              {inFreeTier ? `left to try (${totalUsed}/${FREE_TOTAL} used)` : "left this month"}
+          ) : (
+            <div className="plan-strip free">
+              <div style={{ fontSize: 13, color: "#5a6a4a" }}>
+                Free — <strong style={{ color: "#1a3a1a" }}>{rleft} roll{rleft !== 1 ? "s" : ""}</strong>{" "}
+                {inFreeTier ? `left to try (${totalUsed}/${FREE_TOTAL} used)` : "left this month"}
+              </div>
+              <button className="strip-upgrade" onClick={() => setShowPaywall(true)}>✦ Go Premium — {PRICE_MONTHLY}/mo</button>
             </div>
-            <button className="strip-upgrade" onClick={() => setShowPaywall(true)}>✦ Go Premium — {PRICE_MONTHLY}/mo</button>
-          </div>
-        )}
+          )
+        ) : null}
 
         {/* Current week */}
         <div className="cw-card">
