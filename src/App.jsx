@@ -1965,9 +1965,7 @@ export default function App() {
     const act = params.get("activate");
     if (act === "premium") {
       window.history.replaceState({}, document.title, window.location.pathname);
-      const pd = { email: "premium@dishroll.app", id: "manual", until: Date.now() + 365 * 864e5 };
-      saveP(pd); setPremium(pd);
-      try { if (!localStorage.getItem(PW)) setShowPremiumWelcome(true); } catch {};
+      
     } else if (sid) {
       window.history.replaceState({}, document.title, window.location.pathname);
       setVerifying(true);
