@@ -1,5 +1,5 @@
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'llama-3.3-70b-versatile';
+const MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1500;
 
@@ -30,7 +30,7 @@ exports.handler = async (event) => {
   let { prompt, messages, maxTokens = 4000, lang, systemPrompt } = JSON.parse(event.body);
 
   // Groq has per-model token limits — cap to avoid errors
-  if (maxTokens > 4000) maxTokens = 4000;
+  if (maxTokens > 6000) maxTokens = 6000;
 
   const systemContent = systemPrompt ||
     'You are a culinary expert and meal planner. Respond ONLY with valid compact JSON. No markdown backticks, no prose, no preamble, no explanation.';
@@ -56,6 +56,8 @@ exports.handler = async (event) => {
           ],
           max_tokens: maxTokens,
           temperature: 0.7,
+          reasoning_effort: 'low',
+          include_reasoning: false,
         }),
       });
 
