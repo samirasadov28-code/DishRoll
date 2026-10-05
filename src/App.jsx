@@ -1965,9 +1965,7 @@ export default function App() {
     const act = params.get("activate");
     if (act === "premium") {
       window.history.replaceState({}, document.title, window.location.pathname);
-      const pd = { email: "premium@dishroll.app", id: "manual", until: Date.now() + 365 * 864e5 };
-      saveP(pd); setPremium(pd);
-      try { if (!localStorage.getItem(PW)) setShowPremiumWelcome(true); } catch {};
+      
     } else if (sid) {
       window.history.replaceState({}, document.title, window.location.pathname);
       setVerifying(true);
@@ -2667,7 +2665,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         <p>We may also disclose information where required by law.</p>
 
         <h2>AI-generated content</h2>
-        <p>DishRoll uses Groq's AI services (powered by Meta's Llama models) to generate meal plans, recipes, and chat responses. Inputs you provide for these features may be transmitted to Groq solely to produce results for you. Please do not include sensitive personal information in your meal preferences or chat messages.</p>
+        <p>DishRoll uses Groq's AI services (powered by open-weight models such as OpenAI's gpt-oss) to generate meal plans, recipes, and chat responses. Inputs you provide for these features may be transmitted to Groq solely to produce results for you. Please do not include sensitive personal information in your meal preferences or chat messages.</p>
 
         <h2>Data retention</h2>
         <p>Meal plan data is stored locally on your device (browser localStorage) and is not transmitted to our servers. We retain other information for as long as needed to provide the Service and for legitimate or legal purposes.</p>
