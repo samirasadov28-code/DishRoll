@@ -2531,7 +2531,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                 Free — <strong style={{ color: "#1a3a1a" }}>{rleft} roll{rleft !== 1 ? "s" : ""}</strong>{" "}
                 {inFreeTier ? `left to try (${totalUsed}/${FREE_TOTAL} used)` : "left this month"}
               </div>
-              <button className="strip-upgrade" onClick={() => setShowPaywall(true)}>✦ Go Premium — {PRICE_MONTHLY}/mo</button>
+              <button className="strip-upgrade" onClick={() => setShowPaywall(true)}>✦ Go Premium — {PRICE_MONTHLY} one-off</button>
             </div>
           )
         ) : null}
@@ -2815,11 +2815,11 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
             <div className="plan-card featured">
               <div className="plan-badge">BEST VALUE</div>
               <div className="plan-name featured">Premium</div>
-              <div className="plan-features">✓ <strong>Unlimited</strong> rolls<br />✓ All free features<br />✓ Kids meal rows<br />✓ Full history</div>
-              <div className="plan-price featured">{PRICE_MONTHLY}<span style={{ fontSize: 12, color: "#8a9a7a", fontWeight: 400 }}>/mo</span></div>
+              <div className="plan-features">✓ <strong>Unlimited</strong> rolls<br />✓ All free features<br />✓ Kids meal rows<br />✓ Full history<br />✓ Lifetime access</div>
+              <div className="plan-price featured">{PRICE_MONTHLY}<span style={{ fontSize: 12, color: "#8a9a7a", fontWeight: 400 }}> one-off</span></div>
             </div>
           </div>
-          <button className="paywall-cta" onClick={startCheckout}>✨ Upgrade to Premium — {PRICE_MONTHLY}/month</button>
+          <button className="paywall-cta" onClick={startCheckout}>✨ Upgrade to Premium — {PRICE_MONTHLY} one-off, lifetime</button>
           <button className="paywall-skip" onClick={() => setShowPaywall(false)}>Maybe later</button>
           <div className="paywall-restore">Already subscribed? <span onClick={startCheckout}>Restore access</span></div>
         </div>
