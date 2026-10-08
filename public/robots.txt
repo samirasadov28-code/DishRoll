@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://dishroll.app/sitemap.xml
+Sitemap: https://dishroll.netlify.app/sitemap.xml
