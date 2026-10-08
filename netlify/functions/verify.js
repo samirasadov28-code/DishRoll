@@ -71,7 +71,7 @@ exports.handler = async (event) => {
         premium: true,
         email: session.customer_details?.email || session.customer_email || '',
         customerId: session.customer || '',
-        subscriptionId: typeof sub === 'object' ? sub.id : sub,
+        subscriptionId: sub && typeof sub === 'object' ? sub.id : (sub || ''),
         validUntil: periodEnd,
       }),
     };
