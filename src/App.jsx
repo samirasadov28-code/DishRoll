@@ -2285,7 +2285,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
   // checkout
   function startCheckout() {
     track("upgrade_clicked", { from: step });
-    window.location.href = "https://buy.stripe.com/dRmfZidobbBQeWZaIx2Ry02";
+    window.location.href = "https://buy.stripe.com/14A7sM4RFgWa6qt7wl2Ry03";
   }
 
   function fmtDate(ms) {
@@ -2821,7 +2821,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
           </div>
           <button className="paywall-cta" onClick={startCheckout}>✨ Upgrade to Premium — {PRICE_MONTHLY} one-off, lifetime</button>
           <button className="paywall-skip" onClick={() => setShowPaywall(false)}>Maybe later</button>
-          <div className="paywall-restore">Already subscribed? <span onClick={startCheckout}>Restore access</span></div>
+          <div className="paywall-restore">Already purchased? <span onClick={startCheckout}>Restore access</span></div>
         </div>
       </div>
     );
@@ -2890,7 +2890,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
                 </button>
               )}
               {cancelled && (
-                <button className="paywall-cta" onClick={startCheckout}>Resubscribe</button>
+                <button className="paywall-cta" onClick={startCheckout}>Buy lifetime access</button>
               )}
               <button className="paywall-skip" style={{ color: "#8a9a7a" }} onClick={() => { clearP(); setPremium(null); setShowManage(false); pop("Removed from this device."); }}>
                 Remove from this device only
