@@ -2626,6 +2626,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         <div className="land-footer">
           <span className="land-footer-v">DishRoll v{APP_VERSION}</span>
           <button className="land-footer-link" onClick={() => { window.history.pushState({}, "", "/privacy"); setStep("privacy"); }}>Privacy Policy</button>
+          <a className="land-footer-link" href="/terms">Terms</a>
           <button className="btn-update" onClick={forceUpdate} disabled={updating}>
             <span className={updating ? "spinning" : ""} style={{ display: "inline-block" }}>↻</span>
             {updating ? "Updating…" : "Force update"}
