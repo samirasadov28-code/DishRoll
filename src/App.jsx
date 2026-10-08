@@ -3091,7 +3091,7 @@ Return ONLY JSON:{"steps":["Step 1: [action] — [exact qty, temp °C if applica
         {verifying && (
           <div className="verifying-overlay">
             <div className="spin-ring" style={{ width: 40, height: 40, borderWidth: 3 }} />
-            <p>Verifying your subscription…</p>
+            <p>Verifying your payment…</p>
           </div>
         )}
 
