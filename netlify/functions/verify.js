@@ -58,9 +58,11 @@ exports.handler = async (event) => {
 
     // Work out validUntil from subscription period end
     // Falls back to 31 days from now if subscription not expanded
+    // One-off lifetime purchases have no subscription: grant 100 years.
+    // Existing monthly subscribers keep their period end.
     const periodEnd = sub?.current_period_end
       ? sub.current_period_end * 1000          // Stripe returns Unix seconds
-      : Date.now() + 31 * 24 * 60 * 60 * 1000;
+      : Date.now() + 100 * 365 * 24 * 60 * 60 * 1000;
 
     return {
       statusCode: 200,

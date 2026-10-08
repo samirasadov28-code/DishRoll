@@ -29,7 +29,7 @@ exports.handler = async (event) => {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        'mode': 'subscription',
+        'mode': 'payment',
         'line_items[0][price]': STRIPE_PRICE_ID,
         'line_items[0][quantity]': '1',
         'success_url': `${ORIGIN}/?session_id={CHECKOUT_SESSION_ID}`,
