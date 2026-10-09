@@ -7,7 +7,7 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: 'Method not allowed' };
   }
 
-  const { STRIPE_SECRET_KEY } = process.env;
+  const { STRIPE_SECRET_KEY, STRIPE_PRICE_ID, STRIPE_LEGACY_PRICE_IDS } = process.env;
   if (!STRIPE_SECRET_KEY) {
     return {
       statusCode: 500,
@@ -29,7 +29,7 @@ exports.handler = async (event) => {
   try {
     // Retrieve the checkout session from Stripe, expanding subscription
     const res = await fetch(
-      `https://api.stripe.com/v1/checkout/sessions/${sessionId}?expand[]=subscription`,
+      `https://api.stripe.com/v1/checkout/sessions/${sessionId}?expand[]=subscription&expand[]=line_items`,
       {
         headers: { 'Authorization': `Bearer ${STRIPE_SECRET_KEY}` },
       }
@@ -44,16 +44,25 @@ exports.handler = async (event) => {
       };
     }
 
-    // Session must be 'complete' with an active subscription
-    const isPaid = session.payment_status === 'paid' || session.status === 'complete';
+    // A paid session for another app must never unlock DishRoll.
+    const allowedPrices = new Set(
+      [STRIPE_PRICE_ID, ...(STRIPE_LEGACY_PRICE_IDS || '').split(',')]
+        .map((id) => (id || '').trim()).filter(Boolean)
+    );
+    const matchesPrice = session.line_items?.data?.some((item) =>
+      allowedPrices.has(typeof item.price === 'string' ? item.price : item.price?.id)
+    );
+    if (!allowedPrices.size || !matchesPrice) {
+      return { statusCode: 200, body: JSON.stringify({ premium: false, reason: 'Payment is not for DishRoll' }) };
+    }
+
     const sub = session.subscription;
     const isActive = sub?.status === 'active' || sub?.status === 'trialing';
-
-    if (!isPaid && !isActive) {
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ premium: false, reason: 'Payment not complete' }),
-      };
+    const eligible = session.mode === 'payment'
+      ? session.payment_status === 'paid'
+      : session.mode === 'subscription' && isActive;
+    if (!eligible) {
+      return { statusCode: 200, body: JSON.stringify({ premium: false, reason: 'Payment not complete' }) };
     }
 
     // Work out validUntil from subscription period end
