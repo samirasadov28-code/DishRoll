@@ -29,7 +29,7 @@ exports.handler = async (event) => {
   try {
     // Retrieve the checkout session from Stripe, expanding subscription
     const res = await fetch(
-      `https://api.stripe.com/v1/checkout/sessions/${sessionId}?expand[]=subscription&expand[]=line_items`,
+      `https://api.stripe.com/v1/checkout/sessions/${sessionId}?expand[]=subscription&expand[]=line_items&expand[]=payment_intent.latest_charge`,
       {
         headers: { 'Authorization': `Bearer ${STRIPE_SECRET_KEY}` },
       }
@@ -63,6 +63,22 @@ exports.handler = async (event) => {
       : session.mode === 'subscription' && isActive;
     if (!eligible) {
       return { statusCode: 200, body: JSON.stringify({ premium: false, reason: 'Payment not complete' }) };
+    }
+
+    // One-off lifetime purchases: a full refund or dispute revokes access.
+    // session.payment_status stays 'paid' after a refund, so the charge itself
+    // has to be checked. Legacy subscriptions are covered by the status check above.
+    if (session.mode === 'payment') {
+      const pi = session.payment_intent;
+      const charge = pi && typeof pi === 'object' ? pi.latest_charge : null;
+      if (charge && typeof charge === 'object') {
+        const revoked = charge.refunded === true
+          || charge.disputed === true
+          || (charge.amount_refunded ?? 0) >= (charge.amount ?? Infinity);
+        if (revoked) {
+          return { statusCode: 200, body: JSON.stringify({ premium: false, reason: 'Payment refunded' }) };
+        }
+      }
     }
 
     // Work out validUntil from subscription period end
