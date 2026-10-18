@@ -1960,6 +1960,18 @@ export default function App() {
     try { if (!localStorage.getItem(SK)) setShowListTip(true); } catch {}
     const p = loadP(); setPremium(p);
     setUsage(loadU());
+    // Re-verify cached premium against Stripe at most once a day, so a refunded
+    // purchase loses access. Entries without a session id (saved before this
+    // check existed) are left as they are.
+    if (p && p.sid && (!p.checkedAt || Date.now() - p.checkedAt > 864e5)) {
+      fetch("/.netlify/functions/verify", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ sessionId: p.sid }) })
+        .then(r => r.json())
+        .then(d => {
+          if (d.premium) { const pd = { ...p, until: d.validUntil, checkedAt: Date.now() }; saveP(pd); setPremium(pd); }
+          else { clearP(); setPremium(null); pop("Premium access has ended."); }
+        })
+        .catch(() => {});
+    }
     const params = new URLSearchParams(window.location.search);
     const sid = params.get("session_id");
     const act = params.get("activate");
@@ -1972,7 +1984,7 @@ export default function App() {
       fetch("/.netlify/functions/verify", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ sessionId: sid }) })
         .then(r => r.json())
         .then(d => {
-          if (d.premium) { const pd = { email: d.email, id: d.customerId, subId: d.subscriptionId, until: d.validUntil }; saveP(pd); setPremium(pd); try { if (!localStorage.getItem(PW)) setShowPremiumWelcome(true); } catch {} }
+          if (d.premium) { const pd = { email: d.email, id: d.customerId, subId: d.subscriptionId, until: d.validUntil, sid, checkedAt: Date.now() }; saveP(pd); setPremium(pd); try { if (!localStorage.getItem(PW)) setShowPremiumWelcome(true); } catch {} }
           else pop("Could not verify payment — contact support.");
         })
         .catch(() => pop("Could not verify. Try refreshing."))
